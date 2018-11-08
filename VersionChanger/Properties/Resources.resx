@@ -117,12 +117,11 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="hashLatest" xml:space="preserve">
-    <value>hfjskdf</value>
-    <comment>Hash for the 1.84 backup files</comment>
+  <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+  <data name="files_180" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\files_180.7z;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="hashStable" xml:space="preserve">
-    <value>ahfjskhlksdg</value>
-    <comment>Hash for the 1.80 patch folder</comment>
+  <data name="files_184" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\files_184.7z;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
 </root>

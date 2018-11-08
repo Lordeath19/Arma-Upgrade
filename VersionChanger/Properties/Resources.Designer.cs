@@ -61,20 +61,22 @@ namespace VersionChanger.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to hfjskdf.
+        ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static string hashLatest {
+        internal static byte[] files_180 {
             get {
-                return ResourceManager.GetString("hashLatest", resourceCulture);
+                object obj = ResourceManager.GetObject("files_180", resourceCulture);
+                return ((byte[])(obj));
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to ahfjskhlksdg.
+        ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static string hashStable {
+        internal static byte[] files_184 {
             get {
-                return ResourceManager.GetString("hashStable", resourceCulture);
+                object obj = ResourceManager.GetObject("files_184", resourceCulture);
+                return ((byte[])(obj));
             }
         }
     }

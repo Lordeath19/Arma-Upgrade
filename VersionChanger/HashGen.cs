@@ -13,23 +13,29 @@ namespace VersionChanger
 	class HashGen
 	{
 
-		public static string GetHash(string folder)
+		public static IEnumerable<string> GetHashes(string folder)
 		{
+			List<string> hashes = new List<string>();
 			//Calculate a hash for each file
-			string totalHash = "";
-			foreach (string item in Directory.EnumerateFiles(folder))
+			foreach (string item in Directory.EnumerateFiles(Path.Combine(folder, "Launcher")))
 			{
-				totalHash += CalculateMD5File(item);
+				hashes.Add(CalculateMD5File(item));
 			}
 
+			hashes.Sort();
 
-			//Calculate hash of hashes to store a single value
-			using (var md5 = MD5.Create())
+			List<string> tempHashList = new List<string>();
+
+			foreach (string item in Directory.EnumerateFiles(@folder))
 			{
-				var hash = md5.ComputeHash(Encoding.ASCII.GetBytes(totalHash));
-				return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+				tempHashList.Add(CalculateMD5File(item));
 			}
 
+			tempHashList.Sort();
+
+			hashes.AddRange(tempHashList);
+
+			return hashes;
 		}
 
 

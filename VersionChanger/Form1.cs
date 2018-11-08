@@ -16,52 +16,32 @@ namespace VersionChanger
 		{
 			InitializeComponent();
 		}
-
-		private void LatestBrowser_Click(object sender, EventArgs e)
-		{
-			if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
-			{
-				latestText.Text = folderBrowserDialog1.SelectedPath;
-			}
-		}
-
-		private void StableBrowser_Click(object sender, EventArgs e)
-		{
-			if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
-			{
-				stableText.Text = folderBrowserDialog1.SelectedPath;
-			}
-
-		}
+		
 
 		private void ArmaBrowser_Click(object sender, EventArgs e)
 		{
 			if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
 			{
 				armaText.Text = folderBrowserDialog1.SelectedPath;
+
 			}
 		}
 
 		private void LatestUpgrade_Click(object sender, EventArgs e)
 		{
-			if (Properties.Resources.hashLatest != HashGen.GetHash(latestText.Text))
-			{
-				MessageBox.Show("The backup folder is wrong, either some files were changed or files were removed", "Incorrect Backup", MessageBoxButtons.OK, MessageBoxIcon.Error);
-				return;
-			}
-
-			Changer.Change(latestText.Text, armaText.Text);
+			Changer.Upgrade(armaText.Text);
 		}
 
 		private void StableDowngrade_Click(object sender, EventArgs e)
 		{
-			if (Properties.Resources.hashLatest != HashGen.GetHash(latestText.Text))
-			{
-				MessageBox.Show("The backup folder is wrong, either some files were changed or files were removed", "Incorrect Backup", MessageBoxButtons.OK, MessageBoxIcon.Error);
-				return;
-			}
+			Changer.Downgrade(armaText.Text);
+		}
 
-			Changer.Change(stableText.Text, armaText.Text);
+
+		private void ArmaText_Changed(object sender, EventArgs e)
+		{
+			Properties.Settings.Default.pathArma = armaText.Text;
+			Properties.Settings.Default.Save();
 		}
 	}
 }
