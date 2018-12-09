@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -142,5 +143,16 @@ namespace VersionChanger
 
 		}
 
+
+		public static void LmaoGonnaFuckStuffUpIThink(string pboNameIGuess)
+		{
+			byte[] fileBytes = File.ReadAllBytes(pboNameIGuess);
+			char[] sb = Encoding.ASCII.GetChars(fileBytes);
+
+			string s = new string(sb);
+			s = s.Replace('\0', ' ');
+			Debug.WriteLine(s);
+			//File.WriteAllText(outputFilename, sb.ToString());
+		}
 	}
 }
