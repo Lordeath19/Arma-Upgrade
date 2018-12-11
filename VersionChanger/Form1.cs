@@ -19,6 +19,11 @@ namespace VersionChanger
 		public MainForm()
 		{
 			InitializeComponent();
+			//Changer.ExtractAllConfigs(@"H:\Version Changer - Test Arma 3", @"H:\Version Changer - Test Arma 3 1.86 - Out");
+			Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 out");
+			//Changer.ChangePBOs(@"H:\Version Changer - Test Arma 3", @"H:\Version Changer - Test Arma 3 - Out");
+
+			/*
 			PBOSharpClient pboClient = new PBOSharpClient();
 			
 			//Create the pbo file 
@@ -43,6 +48,7 @@ namespace VersionChanger
 			writer.WritePBO(pbo);
 
 			fileStream.Close();
+			*/
 		}
 		
 
