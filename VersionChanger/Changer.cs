@@ -159,10 +159,17 @@ namespace VersionChanger
 			using (FileStream targetS = new FileStream(modified, FileMode.Open, FileAccess.Read))
 			{
 				VCCoder coder = new VCCoder(dictS, targetS, outputS);
-				VCDiffResult result = coder.Encode(); //encodes with no checksum and not interleaved
+				VCDiffResult result = coder.Encode(true, true); //encodes with no checksum and not interleaved
 				if (result != VCDiffResult.SUCCESS)
 				{
+					Debug.WriteLine($"Something got fucked up, how to check please help");
 					//error was not able to encode properly
+				}
+
+				if (outputS.Length == 0)
+				{
+					outputS.Close();
+					File.Delete(output);
 				}
 			}
 		}
@@ -216,16 +223,6 @@ namespace VersionChanger
 					DoDecode(item, item.Replace(path1, path2), item.Replace(path1, output));
 					Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
 
-					try
-					{
-						if (File.Exists(item.Replace(path1, output))
-						&& new FileInfo(item.Replace(path1, output)).Length == 0)
-						{
-							File.Delete(item.Replace(path1, output));
-						}
-					}
-					catch (Exception)
-					{ }
 				});
 		}
 
@@ -267,17 +264,6 @@ namespace VersionChanger
 						}
 					}
 					catch (IOException) { }
-
-					try
-					{
-						if (File.Exists(item.Replace(path1, output))
-						&& new FileInfo(item.Replace(path1, output)).Length == 0)
-						{
-							File.Delete(item.Replace(path1, output));
-						}
-					}
-					catch (Exception)
-					{ }
 				});
 		}
 

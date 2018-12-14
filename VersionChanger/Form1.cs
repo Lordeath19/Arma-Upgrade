@@ -15,14 +15,15 @@ namespace VersionChanger
 		{
 			InitializeComponent();
 			//Downgrade
-			//GetDifferentFiles(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80");
+			Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80");
 
 
 			//Upgrade
+			Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 1.80", @"H:\Version Changer - Delta Arma 3 - 1.86");
 
 		}
 
-		
+
 		private void ArmaBrowser_Click(object sender, EventArgs e)
 		{
 			if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
