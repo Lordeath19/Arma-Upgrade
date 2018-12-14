@@ -1,83 +1,30 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
-using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using PBOSharp;
-using PBOSharp.Objects;
 using SevenZipExtractor;
+using VCDiff.Decoders;
+using VCDiff.Encoders;
+using VCDiff.Includes;
 
 namespace VersionChanger
 {
+	/// <summary>
+	/// This class is responsible for updating/downgrading arma using this process:
+	/// Stage 1: Unzip resource file to temp path
+	/// Stage 2: Combine delta files with arma 3 files and output to another temp folder
+	/// Stage 3: Replace all the files with the files generated in stage 4
+	/// Stage 4: Delete all the generated files
+	/// </summary>
 	class Changer
 	{
 
-
-		private static readonly string _zipPath = Path.Combine(Path.GetTempPath(), @"ArmaPatch.7z");
-
-		/// <summary>
-		/// Changes all pbos inside rootOut with the modifies files inside rootIn
-		/// </summary>
-		/// <param name="rootOut">Root path of the output folder, where the pbo files are stored</param>
-		/// <param name="rootIn">Root path of the input folder, where the modified files are stored</param>
-		internal static void ChangePBOs(string rootOut, string rootIn)
-		{
-			PBOSharpClient client = new PBOSharpClient();
-			var everything = Directory.EnumerateFiles(rootIn, "*", SearchOption.AllDirectories);
-			foreach (var item in everything)
-			{
-				var pbo = client.AnalyzePBO(item);//Input pbo
-				var pboNew = client.AnalyzePBO(item.Replace(rootIn, rootOut));//Original pbo
-				string newPath = pboNew.LongName.Replace(".pbo", "_new.pbo");//Output pbo file
-				using (FileStream fs = new FileStream(newPath, FileMode.Create, FileAccess.Write))
-				{
-					for (int i = 0; i < pboNew.Files.Count; i++)
-					{
-						var currFile = pboNew.Files[i];//Original file inside pbo
-						var pboFile = pbo.Files.Find(x => x.FileName.Equals(currFile.FileName));//Input file inside pbo
-																								//Check if pbo file exists in the input pbo
-						if (pboFile != null)
-						{
-							var configReader = pboFile.Reader;
-							currFile = new PBOFile(currFile.FileName, currFile.FileNameShort, currFile.PackingMethod, pboFile.OriginalSize, pboFile.Reserved, currFile.Timestamp, pboFile.DataSize, pboFile.Offset, configReader);
-						}
-
-						pboNew.Files[i] = currFile;
-					}
-
-					PBOWriter writer = new PBOWriter(fs, client);
-					writer.WritePBO(pboNew);
-					writer.Close();
-				}
-
-				pboNew.Reader.Close();
-				File.Replace(newPath, pboNew.LongName, null);
-				File.Delete(newPath);
-				/*
-
-				//Create the pbo file 
-
-				PBOReader configReader = new PBOReader(new FileStream(@"C:\Users\User\Documents\GitHub\Arma-Upgrade\VersionChanger\config.bin", FileMode.Open, FileAccess.Read), pboClient);
-				for (int i = 0; i < pbo.Files.Count; i++)
-				{
-					PBOFile item = pbo.Files[i];
-					if (item.FileNameShort.Equals("config.bin"))
-					{
-						item = new PBOFile(item.FileName, item.FileNameShort, item.PackingMethod, (int)configReader.BaseStream.Length, item.Reserved, item.Timestamp, (int)configReader.BaseStream.Length, 0, configReader);
-					}
-
-					pbo.Files[i] = item;
-				}
+		private static int stage = 1;
+		private static readonly string _unpackPath = Path.Combine(Path.GetTempPath(), @"Arma Delta Files");
+		private static readonly string _armaTemp = Path.Combine(Path.GetTempPath(), @"Arma temp");
 
 
-				//Write the file content
-				PBOWriter writer = new PBOWriter(fileStream, pboClient);
-				writer.WritePBO(pbo);
-
-				fileStream.Close();
-				*/
-
-			}
-		}
 
 		/// <summary>
 		/// Copy the resource files to downgrade from 1.84 to 1.80
@@ -85,45 +32,8 @@ namespace VersionChanger
 		/// <param name="outputFolder">The main arma folder</param>
 		internal static void Downgrade(string outputFolder)
 		{
-			bool loopAgain = true;
-			while (loopAgain)
-			{
-				try
-				{
-					CopyResource("VersionChanger.Resources.files_180.7z", outputFolder);
+			DoProcess(@"Resources\files_180.7z", outputFolder);
 
-					loopAgain = false;
-					MessageBox.Show("Version has been changed", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-				}
-				catch (IOException e)
-				{
-					if (MessageBox.Show("The file is currently in use\nDo you want to try again?\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-				catch (UnauthorizedAccessException e)
-				{
-					if (MessageBox.Show("The file is set to read only\nAnd can't be replaced\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-				catch (PlatformNotSupportedException e)
-				{
-					if (MessageBox.Show("The program is only able to run on windows 7+\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-				catch (Exception e)
-				{
-					if (MessageBox.Show("An unknown error has occured\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-			}
 		}
 
 		/// <summary>
@@ -132,19 +42,41 @@ namespace VersionChanger
 		/// <param name="outputFolder">The main arma folder</param>
 		internal static void Upgrade(string outputFolder)
 		{
+			DoProcess(@"Resources\files_186.7z", outputFolder);
+		}
+
+
+		private static void DoProcess(string resourceName, string outputFolder)
+		{
 			bool loopAgain = true;
 			while (loopAgain)
 			{
 				try
 				{
-					CopyResource("VersionChanger.Resources.files_184.7z", outputFolder);
-
+					switch (stage)
+					{
+						case 1:
+							ExtractZip(resourceName);
+							stage++;
+							goto case 2;
+						case 2:
+							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
+							stage++;
+							goto case 3;
+						case 3:
+							ReplaceAll(_armaTemp, outputFolder);
+							stage++;
+							goto case 4;
+						case 4:
+							Cleanup();
+							break;
+					}
 					loopAgain = false;
 					MessageBox.Show("Version has been changed", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 				}
 				catch (IOException e)
 				{
-					if (MessageBox.Show("The file is currently in use\nDo you want to try again?\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
+					if (MessageBox.Show("Could not access the file\nDo you want to try again?\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
 					{
 						loopAgain = false;
 					}
@@ -163,6 +95,19 @@ namespace VersionChanger
 						loopAgain = false;
 					}
 				}
+
+				catch (AggregateException es)
+				{
+					string totalExceptions = "";
+					foreach (var e in es.InnerExceptions)
+					{
+						totalExceptions += $"{e.Message}\n\n";
+					}
+					if (MessageBox.Show("An unknown error has occured\n\n" + totalExceptions, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
+					{
+						loopAgain = false;
+					}
+				}
 				catch (Exception e)
 				{
 					if (MessageBox.Show("An unknown error has occured\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
@@ -173,88 +118,169 @@ namespace VersionChanger
 			}
 		}
 
-
-		/// <summary>
-		/// Function to copy resource by name to specified path
-		/// </summary>
-		/// <param name="resourceName">full resource name</param>
-		/// <param name="outputFolder">obselute path including extension</param>
-		private static void CopyResource(string resourceName, string outputFolder)
+		private static void ReplaceAll(string armaTemp, string outputFolder)
 		{
-			//Create file to read from in temporary folder
-			using (var resource = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
-			{
-
-				using (var file = new FileStream(_zipPath, FileMode.Create, FileAccess.Write))
+			Parallel.ForEach(Directory.EnumerateFiles(armaTemp, "*", SearchOption.AllDirectories),
+				new ParallelOptions { MaxDegreeOfParallelism = 4 },
+				(item) =>
 				{
-					resource.CopyTo(file);
-				}
+					File.Replace(item, item.Replace(armaTemp, outputFolder), null);
+				});
+		}
 
-			}
-
-			//Use library to extract the content of the temporary file to the output folder
-			using (ArchiveFile archiveFile = new ArchiveFile(_zipPath))
-			{
-				archiveFile.Extract(outputFolder, true);
-			}
-
-			//Delete temp file after completion
-			File.Delete(_zipPath);
-
+		private static void Cleanup()
+		{
+			Directory.Delete(_armaTemp, true);
+			Directory.Delete(_unpackPath, true);
 		}
 
 		/// <summary>
-		/// One time function, extracts all config.bin files from the pbos, this later gets inserted to the pbo in question to update/downgrade it
+		/// Extract resource to _zipPath
 		/// </summary>
-		/// <param name="armaPath">path of arma to grab the pbos from</param>
-		/// <param name="outPath">output folder that will act as the root to all the created pbos containing config.bin files</param>
-		public static void ExtractAllConfigs(string armaPath, string outPath)
+		/// <param name="resourceName">name of zip to extract</param>
+		private static void ExtractZip(string resourceName)
 		{
-			PBOSharpClient client = new PBOSharpClient();
-			var everything = Directory.EnumerateFiles(armaPath, "*.pbo", SearchOption.AllDirectories);
-			foreach (var item in everything)
+			using (ArchiveFile archiveFile = new ArchiveFile(resourceName))
 			{
-				var pbo = client.AnalyzePBO(item);
-				foreach (var pboFile in pbo.Files)
-				{
-					if (!pboFile.FileName.EndsWith("config.bin"))
-						continue;
+				archiveFile.Extract(_unpackPath, true);
+			}
+		}
 
-					string newPath = pbo.LongName.Replace(".pbo", "").Replace(armaPath, outPath);
-					Directory.CreateDirectory(Path.Combine(newPath, pboFile.FileName.Replace(pboFile.FileNameShort, "")));
-					using (FileStream fs = new FileStream(Path.Combine(newPath, pboFile.FileName), FileMode.Create, FileAccess.Write))
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="modified"></param>
+		/// <param name="original"></param>
+		/// <param name="output"></param>
+		private static void DoEncode(string modified, string original, string output)
+		{
+			using (FileStream outputS = new FileStream(output, FileMode.CreateNew, FileAccess.Write))
+			using (FileStream dictS = new FileStream(original, FileMode.Open, FileAccess.Read))
+			using (FileStream targetS = new FileStream(modified, FileMode.Open, FileAccess.Read))
+			{
+				VCCoder coder = new VCCoder(dictS, targetS, outputS);
+				VCDiffResult result = coder.Encode(); //encodes with no checksum and not interleaved
+				if (result != VCDiffResult.SUCCESS)
+				{
+					//error was not able to encode properly
+				}
+			}
+		}
+
+		private static void DoDecode(string delta, string original, string output)
+		{
+			using (FileStream outputS = new FileStream(output, FileMode.Create, FileAccess.Write))
+			using (FileStream dictS = new FileStream(original, FileMode.Open, FileAccess.Read))
+			using (FileStream targetS = new FileStream(delta, FileMode.Open, FileAccess.Read))
+			{
+				VCDecoder decoder = new VCDecoder(dictS, targetS, outputS);
+
+				//You must call decoder.Start() first. The header of the delta file must be available before calling decoder.Start()
+
+				VCDiffResult result = decoder.Start();
+
+				if (result != VCDiffResult.SUCCESS)
+				{
+					//error abort
+				}
+
+				result = decoder.Decode(out long bytesWritten);
+
+				if (result != VCDiffResult.SUCCESS)
+				{
+					//error decoding
+				}
+
+				//if success bytesWritten will contain the number of bytes that were decoded
+			}
+		}
+
+
+		/// <summary>
+		/// Create diff files for original and updated and store it output (works in conjuction with GetDifferentFiles)
+		/// </summary>
+		/// <param name="path1">Delta version root</param>
+		/// <param name="path2">Original version root</param>
+		/// <param name="output">output root path for diff files</param>
+		public static void MergeDifferentFiles(string path1, string path2, string output)
+		{
+			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories),
+				new ParallelOptions { MaxDegreeOfParallelism = 1 },
+				(item) =>
+				{
+					var file = new FileInfo(item);
+
+					Directory.CreateDirectory(file.DirectoryName.Replace(path1, output));
+					Debug.WriteLine($"Writing out file: {item.Replace(path1, output)}");
+
+					DoDecode(item, item.Replace(path1, path2), item.Replace(path1, output));
+					Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
+
+					try
 					{
-						BinaryReader br = pboFile.Reader;
-						br.BaseStream.Seek(pboFile.Offset, SeekOrigin.Begin);
-						byte[] readStuff = br.ReadBytes(pboFile.DataSize);
-						fs.Write(readStuff, 0, readStuff.Length);
+						if (File.Exists(item.Replace(path1, output))
+						&& new FileInfo(item.Replace(path1, output)).Length == 0)
+						{
+							File.Delete(item.Replace(path1, output));
+						}
 					}
-
-				}
-				string pboFolder = item.Replace(armaPath, outPath).Replace(".pbo", "");
-				client.PackPBO(pboFolder);
-				try { Directory.Delete(pboFolder, true); }
-				catch (DirectoryNotFoundException) { }
-			}
+					catch (Exception)
+					{ }
+				});
 		}
 
+
+		/// <summary>
+		/// Create diff files for original and updated and store it output (works in conjuction with MergeDifferentFiles
+		/// </summary>
+		/// <param name="path1">Modified version root</param>
+		/// <param name="path2">Original version root</param>
+		/// <param name="output">output root path for diff files</param>
 		public static void GetDifferentFiles(string path1, string path2, string output)
 		{
-			foreach (var item in Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories))
-			{
-				var file = new FileInfo(item);
-				try
+			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories),
+				new ParallelOptions { MaxDegreeOfParallelism = 5 },
+				(item) =>
 				{
-					if (file.Length != new FileInfo(item.Replace(path1, path2)).Length)
+					var file = new FileInfo(item);
+					try
 					{
-						Directory.CreateDirectory(file.DirectoryName.Replace(path1, output));
-						File.Copy(item, item.Replace(path1, output));
-						string newFileName = item.Replace(path1, output).Replace(Path.GetFileNameWithoutExtension(file.FullName), $"{Path.GetFileNameWithoutExtension(file.FullName)}(2)");
-						File.Copy(item.Replace(path1, path2), newFileName);
+						if (file.Length != new FileInfo(item.Replace(path1, path2)).Length)
+						{
+							Directory.CreateDirectory(file.DirectoryName.Replace(path1, output));
+							Debug.WriteLine($"Writing out file: {item.Replace(path1, output)}");
+							try
+							{
+								DoEncode(item, item.Replace(path1, path2), item.Replace(path1, output));
+								Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
+
+							}
+							catch (IOException)
+							{
+								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)}");
+							}
+							catch (OutOfMemoryException)
+							{
+								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)} ------- MEMORY");
+							}
+
+						}
 					}
-				}
-				catch (IOException) { }
-			}
+					catch (IOException) { }
+
+					try
+					{
+						if (File.Exists(item.Replace(path1, output))
+						&& new FileInfo(item.Replace(path1, output)).Length == 0)
+						{
+							File.Delete(item.Replace(path1, output));
+						}
+					}
+					catch (Exception)
+					{ }
+				});
 		}
+
+
 	}
 }

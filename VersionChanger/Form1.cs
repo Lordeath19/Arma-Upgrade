@@ -1,16 +1,11 @@
-﻿using PBOSharp;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using PBOSharp.Objects;
-using System.Diagnostics;
+using VCDiff.Decoders;
+using VCDiff.Encoders;
+using VCDiff.Includes;
 
 namespace VersionChanger
 {
@@ -19,39 +14,15 @@ namespace VersionChanger
 		public MainForm()
 		{
 			InitializeComponent();
-			//Changer.ExtractAllConfigs(@"H:\Version Changer - Test Arma 3", @"H:\Version Changer - Test Arma 3 1.86 - Out");
-			Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 out");
-			//Changer.ChangePBOs(@"H:\Version Changer - Test Arma 3", @"H:\Version Changer - Test Arma 3 - Out");
+			//Downgrade
+			//GetDifferentFiles(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80");
 
-			/*
-			PBOSharpClient pboClient = new PBOSharpClient();
-			
-			//Create the pbo file 
-			FileStream fileStream = new FileStream(@"C:\Users\User\Documents\GitHub\Arma-Upgrade\VersionChanger\missions_f_epa_video_new.pbo", FileMode.Create, FileAccess.Write);
-			PBO pbo = pboClient.AnalyzePBO(@"C:\Users\User\Documents\GitHub\Arma-Upgrade\VersionChanger\missions_f_epa_video.pbo");
 
-			PBOReader configReader = new PBOReader(new FileStream(@"C:\Users\User\Documents\GitHub\Arma-Upgrade\VersionChanger\config.bin", FileMode.Open, FileAccess.Read), pboClient);
-			for (int i = 0; i < pbo.Files.Count; i++)
-			{
-				PBOFile item = pbo.Files[i];
-				if (item.FileNameShort.Equals("config.bin"))
-				{
-					item = new PBOFile(item.FileName, item.FileNameShort, item.PackingMethod, (int)configReader.BaseStream.Length, item.Reserved, item.Timestamp, (int)configReader.BaseStream.Length, 0, configReader);
-				}
+			//Upgrade
 
-				pbo.Files[i] = item;
-			}
-			
-			
-			//Write the file content
-			PBOWriter writer = new PBOWriter(fileStream, pboClient);
-			writer.WritePBO(pbo);
-
-			fileStream.Close();
-			*/
 		}
-		
 
+		
 		private void ArmaBrowser_Click(object sender, EventArgs e)
 		{
 			if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
@@ -64,6 +35,7 @@ namespace VersionChanger
 		private void LatestUpgrade_Click(object sender, EventArgs e)
 		{
 			Changer.Upgrade(armaText.Text);
+
 		}
 
 		private void StableDowngrade_Click(object sender, EventArgs e)

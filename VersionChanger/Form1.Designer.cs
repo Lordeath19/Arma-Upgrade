@@ -120,7 +120,7 @@ namespace VersionChanger
 			this.label3.Name = "label3";
 			this.label3.Size = new System.Drawing.Size(308, 31);
 			this.label3.TabIndex = 10;
-			this.label3.Text = "Press Latest to switch to 1.84.";
+			this.label3.Text = "Press Latest to switch to 1.86.";
 			// 
 			// MainForm
 			// 

@@ -59,25 +59,5 @@ namespace VersionChanger.Properties {
                 resourceCulture = value;
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] files_180 {
-            get {
-                object obj = ResourceManager.GetObject("files_180", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] files_184 {
-            get {
-                object obj = ResourceManager.GetObject("files_184", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
     }
 }
