@@ -1,11 +1,5 @@
 ﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using VCDiff.Decoders;
-using VCDiff.Encoders;
-using VCDiff.Includes;
 
 namespace VersionChanger
 {
@@ -35,13 +29,14 @@ namespace VersionChanger
 
 		private void LatestUpgrade_Click(object sender, EventArgs e)
 		{
-			Changer.Upgrade(armaText.Text);
-
+			ProgressWindow window = new ProgressWindow(new Tuple<string, string>(@"Resources\files_186.7z", armaText.Text));
+			window.ShowDialog();
 		}
 
 		private void StableDowngrade_Click(object sender, EventArgs e)
 		{
-			Changer.Downgrade(armaText.Text);
+			ProgressWindow window = new ProgressWindow(new Tuple<string, string>(@"Resources\files_180.7z", armaText.Text));
+			window.ShowDialog();
 		}
 
 
@@ -50,5 +45,10 @@ namespace VersionChanger
 			Properties.Settings.Default.pathArma = armaText.Text;
 			Properties.Settings.Default.Save();
 		}
+
+
+
+
+
 	}
 }

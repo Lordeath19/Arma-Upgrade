@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -23,46 +24,37 @@ namespace VersionChanger
 	class Changer
 	{
 
-		private static int stage = 1;
+		private static int _stage = 1;
+		private static readonly int _stages = 5;
 		private static readonly string _unpackPath = Path.Combine(Path.GetTempPath(), @"Arma Delta Files");
 		private static readonly string _armaTemp = Path.Combine(Path.GetTempPath(), @"Arma temp");
 
 
+		/// Extract Zip
+		/// Verify Version (if not correct exit and print all mismatch files
+		/// Merge Files (hopefully directly into the main game)
+		/// Replace All (if can't merge into the main game, output to temp folder and replace all the game files after finished with the new files)
+		/// Cleanup (Clean Zip extract, New Files from deltas)
 
-		/// <summary>
-		/// Copy the resource files to downgrade from 1.84 to 1.80
-		/// </summary>
-		/// <param name="outputFolder">The main arma folder</param>
-		internal static void Downgrade(string outputFolder)
+
+
+		public static void DoProcess(object sender, DoWorkEventArgs args)
 		{
-			if (MessageBox.Show("Are you sure you want to downgrade to version 1.80?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-				DoProcess(@"Resources\files_180.7z", outputFolder);
+			string resourceName = (args.Argument as Tuple<string, string>).Item1;
+			string outputFolder = (args.Argument as Tuple<string, string>).Item2;
+			BackgroundWorker worker = sender as BackgroundWorker;
 
-		}
-
-		/// <summary>
-		/// Copy the resource files to upgrade from 1.80 to 1.84
-		/// </summary>
-		/// <param name="outputFolder">The main arma folder</param>
-		internal static void Upgrade(string outputFolder)
-		{
-			if (MessageBox.Show("Are you sure you want to upgrade to version 1.86?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-				DoProcess(@"Resources\files_186.7z", outputFolder);
-		}
-
-
-		private static void DoProcess(string resourceName, string outputFolder)
-		{
 			bool loopAgain = true;
 			while (loopAgain)
 			{
 				try
 				{
-					switch (stage)
+					switch (_stage)
 					{
+
 						case 1:
 							ExtractZip(resourceName);
-							stage++;
+							worker.ReportProgress(100*_stage++/_stages);
 							goto case 2;
 
 						case 2:
@@ -72,18 +64,19 @@ namespace VersionChanger
 								loopAgain = false;
 								break;
 							}
-							stage++;
+							worker.ReportProgress(100 * _stage++ / _stages);
 							goto case 3;
 						case 3:
 							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
-							stage++;
+							worker.ReportProgress(100 * _stage++ / _stages);
 							goto case 4;
 						case 4:
 							ReplaceAll(_armaTemp, outputFolder);
-							stage++;
+							worker.ReportProgress(100 * _stage++ / _stages);
 							goto case 5;
 						case 5:
 							Cleanup();
+							worker.ReportProgress(100 * _stage++ / _stages);
 							goto case 6;
 						case 6:
 							loopAgain = false;
@@ -136,61 +129,7 @@ namespace VersionChanger
 			}
 		}
 
-		private static bool VerifyVersion(string outputFolder, out string mismatch)
-		{
-			mismatch = "";
-			bool res = true;
-			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
-			{
-				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
-				using (var md5 = MD5.Create())
-				using (var streamInput = File.OpenRead(outputFile))
-				{
-					var hash = md5.ComputeHash(streamInput);
-					var hashFile = File.ReadAllBytes(item);
-					if (!hash.SequenceEqual(hashFile))
-					{
-						Debug.WriteLine($"Not Item match {outputFile}");
-						mismatch += item;
-						res = false;
-					}
-					else
-					{
-						Debug.WriteLine($"Item match {outputFile}");
-					}
 
-				}
-			};
-			return res;
-		}
-
-		private static void ReplaceAll(string armaTemp, string outputFolder)
-		{
-			Parallel.ForEach(Directory.EnumerateFiles(armaTemp, "*", SearchOption.AllDirectories),
-				new ParallelOptions { MaxDegreeOfParallelism = 5 },
-				(item) =>
-				{
-					File.Replace(item, item.Replace(armaTemp, outputFolder), null);
-				});
-		}
-
-		private static void Cleanup()
-		{
-			Directory.Delete(_armaTemp, true);
-			Directory.Delete(_unpackPath, true);
-		}
-
-		/// <summary>
-		/// Extract resource to _zipPath
-		/// </summary>
-		/// <param name="resourceName">name of zip to extract</param>
-		private static void ExtractZip(string resourceName)
-		{
-			using (ArchiveFile archiveFile = new ArchiveFile(resourceName))
-			{
-				archiveFile.Extract(_unpackPath, true);
-			}
-		}
 
 		/// <summary>
 		/// 
@@ -249,6 +188,8 @@ namespace VersionChanger
 		}
 
 
+		#region Replace Functions
+
 		/// <summary>
 		/// Create diff files for original and updated and store it output (works in conjuction with GetDifferentFiles)
 		/// </summary>
@@ -257,7 +198,7 @@ namespace VersionChanger
 		/// <param name="output">output root path for diff files</param>
 		public static void MergeDifferentFiles(string path1, string path2, string output)
 		{
-			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x=>!x.Contains(".hash")),
+			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x => !x.Contains(".hash")),
 				new ParallelOptions { MaxDegreeOfParallelism = 5 },
 				(item) =>
 				{
@@ -271,6 +212,65 @@ namespace VersionChanger
 
 				});
 		}
+
+
+		private static bool VerifyVersion(string outputFolder, out string mismatch)
+		{
+			mismatch = "";
+			bool res = true;
+			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
+			{
+				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
+				using (var md5 = MD5.Create())
+				using (var streamInput = File.OpenRead(outputFile))
+				{
+					var hash = md5.ComputeHash(streamInput);
+					var hashFile = File.ReadAllBytes(item);
+					if (!hash.SequenceEqual(hashFile))
+					{
+						Debug.WriteLine($"Not Item match {outputFile}");
+						mismatch += item;
+						res = false;
+					}
+					else
+					{
+						Debug.WriteLine($"Item match {outputFile}");
+					}
+
+				}
+			};
+			return res;
+		}
+
+		private static void ReplaceAll(string armaTemp, string outputFolder)
+		{
+			Parallel.ForEach(Directory.EnumerateFiles(armaTemp, "*", SearchOption.AllDirectories),
+				new ParallelOptions { MaxDegreeOfParallelism = 5 },
+				(item) =>
+				{
+					File.Replace(item, item.Replace(armaTemp, outputFolder), null);
+				});
+		}
+
+		private static void Cleanup()
+		{
+			Directory.Delete(_armaTemp, true);
+			Directory.Delete(_unpackPath, true);
+		}
+
+		/// <summary>
+		/// Extract resource to _zipPath
+		/// </summary>
+		/// <param name="resourceName">name of zip to extract</param>
+		private static void ExtractZip(string resourceName)
+		{
+			using (ArchiveFile archiveFile = new ArchiveFile(resourceName))
+			{
+				archiveFile.Extract(_unpackPath, true);
+			}
+		}
+		#endregion
+
 
 
 		/// <summary>
