@@ -15,11 +15,11 @@ namespace VersionChanger
 		{
 			InitializeComponent();
 			//Downgrade
-			Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80");
+			//Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80");
 
 
 			//Upgrade
-			Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 1.80", @"H:\Version Changer - Delta Arma 3 - 1.86");
+			//Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 1.80", @"H:\Version Changer - Delta Arma 3 - 1.86");
 
 		}
 

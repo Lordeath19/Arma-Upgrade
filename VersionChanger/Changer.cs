@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using SevenZipExtractor;
@@ -13,6 +15,7 @@ namespace VersionChanger
 	/// <summary>
 	/// This class is responsible for updating/downgrading arma using this process:
 	/// Stage 1: Unzip resource file to temp path
+	/// Stage 2: Check hash values to determine whether to change the version
 	/// Stage 2: Combine delta files with arma 3 files and output to another temp folder
 	/// Stage 3: Replace all the files with the files generated in stage 4
 	/// Stage 4: Delete all the generated files
@@ -32,7 +35,8 @@ namespace VersionChanger
 		/// <param name="outputFolder">The main arma folder</param>
 		internal static void Downgrade(string outputFolder)
 		{
-			DoProcess(@"Resources\files_180.7z", outputFolder);
+			if (MessageBox.Show("Are you sure you want to downgrade to version 1.80?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+				DoProcess(@"Resources\files_180.7z", outputFolder);
 
 		}
 
@@ -42,7 +46,8 @@ namespace VersionChanger
 		/// <param name="outputFolder">The main arma folder</param>
 		internal static void Upgrade(string outputFolder)
 		{
-			DoProcess(@"Resources\files_186.7z", outputFolder);
+			if (MessageBox.Show("Are you sure you want to upgrade to version 1.86?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+				DoProcess(@"Resources\files_186.7z", outputFolder);
 		}
 
 
@@ -59,20 +64,33 @@ namespace VersionChanger
 							ExtractZip(resourceName);
 							stage++;
 							goto case 2;
+
 						case 2:
-							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
+							if (!VerifyVersion(outputFolder, out string mismatch))
+							{
+								MessageBox.Show("Your arma version can not be changed due to this file not having the correct data\n\n" + mismatch, "Failure", MessageBoxButtons.OK, MessageBoxIcon.Error);
+								loopAgain = false;
+								break;
+							}
 							stage++;
 							goto case 3;
 						case 3:
-							ReplaceAll(_armaTemp, outputFolder);
+							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
 							stage++;
 							goto case 4;
 						case 4:
+							ReplaceAll(_armaTemp, outputFolder);
+							stage++;
+							goto case 5;
+						case 5:
 							Cleanup();
+							goto case 6;
+						case 6:
+							loopAgain = false;
+							MessageBox.Show("Version has been changed", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 							break;
+
 					}
-					loopAgain = false;
-					MessageBox.Show("Version has been changed", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 				}
 				catch (IOException e)
 				{
@@ -118,10 +136,38 @@ namespace VersionChanger
 			}
 		}
 
+		private static bool VerifyVersion(string outputFolder, out string mismatch)
+		{
+			mismatch = "";
+			bool res = true;
+			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
+			{
+				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
+				using (var md5 = MD5.Create())
+				using (var streamInput = File.OpenRead(outputFile))
+				{
+					var hash = md5.ComputeHash(streamInput);
+					var hashFile = File.ReadAllBytes(item);
+					if (!hash.SequenceEqual(hashFile))
+					{
+						Debug.WriteLine($"Not Item match {outputFile}");
+						mismatch += item;
+						res = false;
+					}
+					else
+					{
+						Debug.WriteLine($"Item match {outputFile}");
+					}
+
+				}
+			};
+			return res;
+		}
+
 		private static void ReplaceAll(string armaTemp, string outputFolder)
 		{
 			Parallel.ForEach(Directory.EnumerateFiles(armaTemp, "*", SearchOption.AllDirectories),
-				new ParallelOptions { MaxDegreeOfParallelism = 4 },
+				new ParallelOptions { MaxDegreeOfParallelism = 5 },
 				(item) =>
 				{
 					File.Replace(item, item.Replace(armaTemp, outputFolder), null);
@@ -166,7 +212,7 @@ namespace VersionChanger
 					//error was not able to encode properly
 				}
 
-				if (outputS.Length == 0)
+				if (outputS.Length <= 5)
 				{
 					outputS.Close();
 					File.Delete(output);
@@ -211,8 +257,8 @@ namespace VersionChanger
 		/// <param name="output">output root path for diff files</param>
 		public static void MergeDifferentFiles(string path1, string path2, string output)
 		{
-			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories),
-				new ParallelOptions { MaxDegreeOfParallelism = 1 },
+			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x=>!x.Contains(".hash")),
+				new ParallelOptions { MaxDegreeOfParallelism = 5 },
 				(item) =>
 				{
 					var file = new FileInfo(item);
@@ -249,16 +295,19 @@ namespace VersionChanger
 							try
 							{
 								DoEncode(item, item.Replace(path1, path2), item.Replace(path1, output));
+								DoHash(item.Replace(path1, path2), $"{item.Replace(path1, output)}.hash");
 								Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
 
 							}
-							catch (IOException)
+							catch (IOException e)
 							{
-								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)}");
+								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)}\n\n{e.Message}");
 							}
 							catch (OutOfMemoryException)
 							{
 								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)} ------- MEMORY");
+								File.Delete(item.Replace(path1, output));
+
 							}
 
 						}
@@ -267,6 +316,21 @@ namespace VersionChanger
 				});
 		}
 
+		/// <summary>
+		/// Hash the file and output the result
+		/// </summary>
+		/// <param name="fileToHash">Full path to file</param>
+		/// <param name="outputHashFile">Full path to output file</param>
+		private static void DoHash(string fileToHash, string outputHashFile)
+		{
+			using (var md5 = MD5.Create())
+			using (var stream = File.OpenRead(fileToHash))
+			using (var streamOut = File.OpenWrite(outputHashFile))
+			{
+				var hash = md5.ComputeHash(stream);
+				streamOut.Write(hash, 0, hash.Length);
+			}
 
+		}
 	}
 }
