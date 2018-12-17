@@ -44,7 +44,7 @@ namespace VersionChanger
 			string resourceName = (args.Argument as Tuple<string, string>).Item1;
 			string outputFolder = (args.Argument as Tuple<string, string>).Item2;
 			worker = sender as BackgroundWorker;
-
+			_stage = 0;
 			bool loopAgain = true;
 			while (loopAgain)
 			{
@@ -55,7 +55,8 @@ namespace VersionChanger
 
 						case 0:
 							ExtractZip(resourceName);
-							worker.ReportProgress(100 * ++_stage / _stages);
+							if (worker.CancellationPending) goto case 4;
+							worker.ReportProgress(100 * ++_stage / _stages, "Verifying Arma Version");
 							goto case 1;
 
 						case 1:
@@ -65,18 +66,26 @@ namespace VersionChanger
 								loopAgain = false;
 								break;
 							}
-							worker.ReportProgress(100 * ++_stage / _stages);
+							if (worker.CancellationPending) goto case 4;
+							worker.ReportProgress(100 * ++_stage / _stages, "Making update files");
 							goto case 2;
 						case 2:
 							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
-							worker.ReportProgress(100 * ++_stage / _stages);
+							if (worker.CancellationPending) goto case 4;
+							worker.ReportProgress(100 * ++_stage / _stages, "Replacing arma files");
 							goto case 3;
 						case 3:
 							ReplaceAll(outputFolder);
-							worker.ReportProgress(100 * ++_stage / _stages);
+							if (worker.CancellationPending) goto case 4;
+							worker.ReportProgress(100 * ++_stage / _stages, "Cleaning up");
 							goto case 4;
 						case 4:
 							Cleanup();
+							if (worker.CancellationPending)
+							{
+								loopAgain = false;
+								break;
+							}
 							worker.ReportProgress(100 * ++_stage / _stages);
 							goto case 5;
 						case 5:
@@ -85,6 +94,7 @@ namespace VersionChanger
 							break;
 
 					}
+
 				}
 				catch (IOException e)
 				{
@@ -210,7 +220,7 @@ namespace VersionChanger
 			double done = 0;
 			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x => !x.Contains(".hash")),
 				new ParallelOptions { MaxDegreeOfParallelism = 5 },
-				(item) =>
+				(item, state) =>
 				{
 					var file = new FileInfo(item);
 
@@ -220,8 +230,13 @@ namespace VersionChanger
 					DoDecode(item, item.Replace(path1, path2), item.Replace(path1, output));
 					Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
 
-					done += (double)100 * new FileInfo(path2).Length / length;
+					done += (double)100 * new FileInfo(item.Replace(path1, path2)).Length / length;
+					if (done >= 100)
+					{
+						done = 100;
+					}
 					worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
+					if (worker.CancellationPending) state.Break();
 				});
 		}
 
@@ -257,7 +272,12 @@ namespace VersionChanger
 					}
 				}
 				done += (double)100 * new FileInfo(outputFile).Length / length;
+				if (done >= 100)
+				{
+					done = 100;
+				}
 				worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
+				if (worker.CancellationPending) return true;
 			};
 			return res;
 		}
@@ -266,24 +286,43 @@ namespace VersionChanger
 		{
 			long length = Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories).Sum(x => new FileInfo(x).Length);
 			double done = 0;
-			Parallel.ForEach(Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories),
-				new ParallelOptions { MaxDegreeOfParallelism = 5 },
-				(item) =>
+			bool forceCancelCanceled = false;
+			foreach (var item in Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories))
+			{
+				File.Delete(item.Replace(_armaTemp, outputFolder));
+				File.Move(item, item.Replace(_armaTemp, outputFolder));
+				done += (double)100 * new FileInfo(item.Replace(_armaTemp,outputFolder)).Length / length;
+				if (done >= 100)
 				{
-					File.Replace(item, item.Replace(_armaTemp, outputFolder), null);
+					done = 100;
+				}
 
-					done += (double)100 * new FileInfo(item).Length / length;
-					worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
+				worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
 
-				});
+				if (worker.CancellationPending && !forceCancelCanceled)
+				{
+					if (MessageBox.Show("You have started replacing files\nIf you cancel now, arma might be corrupt.\nDo you wish to force cancel?", "CAUTION", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+					{
+						return;
+					}
+					else
+					{
+						forceCancelCanceled = true;
+					}
+				}
+
+			};
 		}
 
-		private static void Cleanup()
+		public static void Cleanup()
 		{
-			Directory.Delete(_armaTemp, true);
-			Directory.Delete(_unpackPath, true);
+			try
+			{
+				if (Directory.Exists(_armaTemp)) Directory.Delete(_armaTemp, true);
+				if (Directory.Exists(_unpackPath)) Directory.Delete(_unpackPath, true);
+			}
+			catch (Exception) { }
 		}
-
 		/// <summary>
 		/// Extract resource to _zipPath
 		/// </summary>
@@ -297,15 +336,17 @@ namespace VersionChanger
 			SevenZipBase.SetLibraryPath(sevenZipPath);
 
 			var file = new SevenZipExtractor(resourceName);
-			file.Extracting += (sender, args) =>
+			file.FileExtractionFinished += (sender, args) =>
 			{
 				int percentDone = int.TryParse(args.PercentDone.ToString(), out int test) ? test : 0;
+				if (percentDone >= 100)
+				{
+					percentDone = 100;
+				}
+				if (worker.CancellationPending) args.Cancel = true;
 				worker.ReportProgress((100 * _stage / _stages) + percentDone / _stages, percentDone);
 			};
-			file.ExtractionFinished += (sender, args) =>
-			{
-				worker.ReportProgress(100 * _stage / _stages);
-			};
+
 
 			file.ExtractArchive(_unpackPath);
 
@@ -320,8 +361,30 @@ namespace VersionChanger
 		/// <param name="path1">Modified version root</param>
 		/// <param name="path2">Original version root</param>
 		/// <param name="output">output root path for diff files</param>
-		public static void GetDifferentFiles(string path1, string path2, string output)
+		public static void GetDifferentFiles(object sender, DoWorkEventArgs args)
 		{
+			string path1 = (args.Argument as Tuple<string, string, string>).Item1;
+			string path2 = (args.Argument as Tuple<string, string, string>).Item2;
+			string output = (args.Argument as Tuple<string, string, string>).Item3;
+			worker = sender as BackgroundWorker;
+
+
+			long length = 0;
+			double done = 0;
+			foreach (var item in Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories))
+			{
+				var file = new FileInfo(item);
+
+				try
+				{
+					if (file.Length != new FileInfo(item.Replace(path1, path2)).Length)
+					{
+						length += file.Length;
+					}
+				}
+				catch (IOException) { }
+			}
+
 			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories),
 				new ParallelOptions { MaxDegreeOfParallelism = 5 },
 				(item) =>
@@ -343,15 +406,25 @@ namespace VersionChanger
 							catch (IOException e)
 							{
 								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)}\n\n{e.Message}");
+								File.Delete(item.Replace(path1, output));
+								File.Delete($"{item.Replace(path1, output)}.hash");
 							}
 							catch (OutOfMemoryException)
 							{
 								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)} ------- MEMORY");
 								File.Delete(item.Replace(path1, output));
+								File.Delete($"{item.Replace(path1, output)}.hash");
 
 							}
 
 						}
+						done += (double)100 * file.Length / length;
+						if (done >= 100)
+						{
+							done = 100;
+						}
+						worker.ReportProgress((int)done);
+						if (worker.CancellationPending) return;
 					}
 					catch (IOException) { }
 				});
@@ -370,6 +443,7 @@ namespace VersionChanger
 			{
 				var hash = md5.ComputeHash(stream);
 				streamOut.Write(hash, 0, hash.Length);
+				if (worker.CancellationPending) return;
 			}
 
 		}

@@ -9,11 +9,13 @@ namespace VersionChanger
 		{
 			InitializeComponent();
 			//Downgrade
-			//Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80");
-
+			//ProgressWindow window = new ProgressWindow(new Tuple<string, string, string>(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80"));
+			//window.ShowDialog();
 
 			//Upgrade
-			//Changer.GetDifferentFiles(@"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 1.80", @"H:\Version Changer - Delta Arma 3 - 1.86");
+			//window = new ProgressWindow(new Tuple<string, string, string>(@"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 1.80", @"H:\Version Changer - Delta Arma 3 - 1.86"));
+			//window.ShowDialog();
+		
 
 		}
 
@@ -29,14 +31,22 @@ namespace VersionChanger
 
 		private void LatestUpgrade_Click(object sender, EventArgs e)
 		{
+			Changer.Cleanup();
+
 			ProgressWindow window = new ProgressWindow(new Tuple<string, string>(@"Resources\files_186.7z", armaText.Text));
 			window.ShowDialog();
+
+			Changer.Cleanup();
 		}
 
 		private void StableDowngrade_Click(object sender, EventArgs e)
 		{
+			Changer.Cleanup();
+
 			ProgressWindow window = new ProgressWindow(new Tuple<string, string>(@"Resources\files_180.7z", armaText.Text));
 			window.ShowDialog();
+
+			Changer.Cleanup();
 		}
 
 
