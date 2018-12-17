@@ -29,7 +29,7 @@ namespace VersionChanger
 
 		internal void ProgressEvent(object sender, ProgressChangedEventArgs e)
 		{
-			progressCurrent.Value = (e.UserState as int?) ?? 0;
+			progressCurrent.Value = int.TryParse(e.UserState?.ToString(), out int test) ? test : 0;
 			progressOverall.Value = e.ProgressPercentage;
 		}
 	}

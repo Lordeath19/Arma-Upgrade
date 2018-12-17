@@ -3,10 +3,11 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using SevenZipExtractor;
+using SevenZip;
 using VCDiff.Decoders;
 using VCDiff.Encoders;
 using VCDiff.Includes;
@@ -24,11 +25,11 @@ namespace VersionChanger
 	class Changer
 	{
 
-		private static int _stage = 1;
+		private static int _stage = 0;
 		private static readonly int _stages = 5;
 		private static readonly string _unpackPath = Path.Combine(Path.GetTempPath(), @"Arma Delta Files");
 		private static readonly string _armaTemp = Path.Combine(Path.GetTempPath(), @"Arma temp");
-
+		private static BackgroundWorker worker;
 
 		/// Extract Zip
 		/// Verify Version (if not correct exit and print all mismatch files
@@ -42,7 +43,7 @@ namespace VersionChanger
 		{
 			string resourceName = (args.Argument as Tuple<string, string>).Item1;
 			string outputFolder = (args.Argument as Tuple<string, string>).Item2;
-			BackgroundWorker worker = sender as BackgroundWorker;
+			worker = sender as BackgroundWorker;
 
 			bool loopAgain = true;
 			while (loopAgain)
@@ -52,33 +53,33 @@ namespace VersionChanger
 					switch (_stage)
 					{
 
-						case 1:
+						case 0:
 							ExtractZip(resourceName);
-							worker.ReportProgress(100*_stage++/_stages);
-							goto case 2;
+							worker.ReportProgress(100 * ++_stage / _stages);
+							goto case 1;
 
-						case 2:
+						case 1:
 							if (!VerifyVersion(outputFolder, out string mismatch))
 							{
 								MessageBox.Show("Your arma version can not be changed due to this file not having the correct data\n\n" + mismatch, "Failure", MessageBoxButtons.OK, MessageBoxIcon.Error);
 								loopAgain = false;
 								break;
 							}
-							worker.ReportProgress(100 * _stage++ / _stages);
+							worker.ReportProgress(100 * ++_stage / _stages);
+							goto case 2;
+						case 2:
+							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
+							worker.ReportProgress(100 * ++_stage / _stages);
 							goto case 3;
 						case 3:
-							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
-							worker.ReportProgress(100 * _stage++ / _stages);
+							ReplaceAll(outputFolder);
+							worker.ReportProgress(100 * ++_stage / _stages);
 							goto case 4;
 						case 4:
-							ReplaceAll(_armaTemp, outputFolder);
-							worker.ReportProgress(100 * _stage++ / _stages);
+							Cleanup();
+							worker.ReportProgress(100 * ++_stage / _stages);
 							goto case 5;
 						case 5:
-							Cleanup();
-							worker.ReportProgress(100 * _stage++ / _stages);
-							goto case 6;
-						case 6:
 							loopAgain = false;
 							MessageBox.Show("Version has been changed", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 							break;
@@ -198,6 +199,8 @@ namespace VersionChanger
 		/// <param name="output">output root path for diff files</param>
 		public static void MergeDifferentFiles(string path1, string path2, string output)
 		{
+			int items = Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x => !x.Contains(".hash")).Count();
+			int done = 0;
 			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x => !x.Contains(".hash")),
 				new ParallelOptions { MaxDegreeOfParallelism = 5 },
 				(item) =>
@@ -210,6 +213,8 @@ namespace VersionChanger
 					DoDecode(item, item.Replace(path1, path2), item.Replace(path1, output));
 					Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
 
+					done = (100 * ++done)/items;
+					worker.ReportProgress((100 * _stage / _stages) + done / _stages, done);
 				});
 		}
 
@@ -218,6 +223,13 @@ namespace VersionChanger
 		{
 			mismatch = "";
 			bool res = true;
+			long length = 0;
+			int done = 0;
+			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
+			{
+				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
+				length += new FileInfo(outputFile).Length;
+			}
 			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
 			{
 				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
@@ -236,19 +248,24 @@ namespace VersionChanger
 					{
 						Debug.WriteLine($"Item match {outputFile}");
 					}
-
 				}
+				done += (int)(100 * new FileInfo(outputFile).Length / length);
+				worker.ReportProgress((100 * _stage / _stages) + done / _stages, done);
 			};
 			return res;
 		}
 
-		private static void ReplaceAll(string armaTemp, string outputFolder)
+		private static void ReplaceAll(string outputFolder)
 		{
-			Parallel.ForEach(Directory.EnumerateFiles(armaTemp, "*", SearchOption.AllDirectories),
+			long length = Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories).Sum(x => new FileInfo(x).Length);
+			int done = 0;
+			Parallel.ForEach(Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories),
 				new ParallelOptions { MaxDegreeOfParallelism = 5 },
 				(item) =>
 				{
-					File.Replace(item, item.Replace(armaTemp, outputFolder), null);
+					File.Replace(item, item.Replace(_armaTemp, outputFolder), null);
+					done += (int)(100 * new FileInfo(item).Length / length);
+					worker.ReportProgress((100 * _stage / _stages) + done / _stages, done);
 				});
 		}
 
@@ -264,10 +281,25 @@ namespace VersionChanger
 		/// <param name="resourceName">name of zip to extract</param>
 		private static void ExtractZip(string resourceName)
 		{
-			using (ArchiveFile archiveFile = new ArchiveFile(resourceName))
+			var sevenZipPath = Path.Combine(
+				Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+				Environment.Is64BitProcess ? "x64" : "x86", "7z.dll");
+
+			SevenZipBase.SetLibraryPath(sevenZipPath);
+
+			var file = new SevenZipExtractor(resourceName);
+			file.Extracting += (sender, args) =>
 			{
-				archiveFile.Extract(_unpackPath, true);
-			}
+				int percentDone = int.TryParse(args.PercentDone.ToString(), out int test) ? test : 0;
+				worker.ReportProgress((100 * _stage / _stages) + percentDone / _stages, percentDone);
+			};
+			file.ExtractionFinished += (sender, args) =>
+			{
+				worker.ReportProgress(100 * _stage / _stages);
+			};
+
+			file.ExtractArchive(_unpackPath);
+
 		}
 		#endregion
 
