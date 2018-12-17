@@ -199,8 +199,15 @@ namespace VersionChanger
 		/// <param name="output">output root path for diff files</param>
 		public static void MergeDifferentFiles(string path1, string path2, string output)
 		{
-			int items = Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x => !x.Contains(".hash")).Count();
-			int done = 0;
+			long length = 0;
+
+			foreach (var item in Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x => !x.Contains(".hash")))
+			{
+				string outputFile = $"{item.Replace(path1, path2)}";
+				length += new FileInfo(outputFile).Length;
+			}
+
+			double done = 0;
 			Parallel.ForEach(Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x => !x.Contains(".hash")),
 				new ParallelOptions { MaxDegreeOfParallelism = 5 },
 				(item) =>
@@ -213,8 +220,8 @@ namespace VersionChanger
 					DoDecode(item, item.Replace(path1, path2), item.Replace(path1, output));
 					Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
 
-					done = (100 * ++done)/items;
-					worker.ReportProgress((100 * _stage / _stages) + done / _stages, done);
+					done += (double)100 * new FileInfo(path2).Length / length;
+					worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
 				});
 		}
 
@@ -224,7 +231,7 @@ namespace VersionChanger
 			mismatch = "";
 			bool res = true;
 			long length = 0;
-			int done = 0;
+			double done = 0;
 			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
 			{
 				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
@@ -249,8 +256,8 @@ namespace VersionChanger
 						Debug.WriteLine($"Item match {outputFile}");
 					}
 				}
-				done += (int)(100 * new FileInfo(outputFile).Length / length);
-				worker.ReportProgress((100 * _stage / _stages) + done / _stages, done);
+				done += (double)100 * new FileInfo(outputFile).Length / length;
+				worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
 			};
 			return res;
 		}
@@ -258,14 +265,16 @@ namespace VersionChanger
 		private static void ReplaceAll(string outputFolder)
 		{
 			long length = Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories).Sum(x => new FileInfo(x).Length);
-			int done = 0;
+			double done = 0;
 			Parallel.ForEach(Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories),
 				new ParallelOptions { MaxDegreeOfParallelism = 5 },
 				(item) =>
 				{
 					File.Replace(item, item.Replace(_armaTemp, outputFolder), null);
-					done += (int)(100 * new FileInfo(item).Length / length);
-					worker.ReportProgress((100 * _stage / _stages) + done / _stages, done);
+
+					done += (double)100 * new FileInfo(item).Length / length;
+					worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
+
 				});
 		}
 
