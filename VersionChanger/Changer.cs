@@ -333,7 +333,7 @@ namespace VersionChanger
 				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
 				if (!File.Exists(outputFile))
 				{
-					mismatch += outputFile;
+					mismatch += outputFile + Environment.NewLine;
 					res = false;
 					continue;
 				}
