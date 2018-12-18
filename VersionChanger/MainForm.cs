@@ -32,8 +32,10 @@ namespace VersionChanger
 
 		private void LatestUpgrade_Click(object sender, EventArgs e)
 		{
+			//Clean up before and after yourself in case of unwanted additional hash/deltas
 			Changer.Cleanup();
 
+			//Default path for latest updated (in this case files_1.86)
 			ProgressWindow window = new ProgressWindow(new Tuple<string, string>(@"Resources\files_186.7z", armaText.Text));
 			window.ShowDialog();
 
@@ -42,8 +44,10 @@ namespace VersionChanger
 
 		private void StableDowngrade_Click(object sender, EventArgs e)
 		{
+			//Clean up before and after yourself in case of unwanted additional hash/deltas
 			Changer.Cleanup();
 
+			//Default path for latest updated (in this case files_1.80)
 			ProgressWindow window = new ProgressWindow(new Tuple<string, string>(@"Resources\files_180.7z", armaText.Text));
 			window.ShowDialog();
 
@@ -53,6 +57,7 @@ namespace VersionChanger
 
 		private void ArmaText_Changed(object sender, EventArgs e)
 		{
+			//After the path changes in the path text box, save the update for later exectutions
 			Properties.Settings.Default.pathArma = armaText.Text;
 			Properties.Settings.Default.Save();
 		}
@@ -63,6 +68,7 @@ namespace VersionChanger
 
 			using (OpenFileDialog openFileDialog = new OpenFileDialog())
 			{
+				//Open the dialog at the Resources folder (from the application start location
 				openFileDialog.InitialDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"Resources");
 				openFileDialog.Filter = "7z files (*.7z)|*.7z|All files (*.*)|*.*";
 				openFileDialog.FilterIndex = 1;
@@ -73,8 +79,10 @@ namespace VersionChanger
 					//Get the path of specified file
 					filePath = openFileDialog.FileName;
 
+					//Clean up before and after yourself in case of unwanted additional hash/deltas
 					Changer.Cleanup();
 
+					//Path will be selected from the dialog
 					ProgressWindow window = new ProgressWindow(new Tuple<string, string>(filePath, armaText.Text));
 					window.ShowDialog();
 

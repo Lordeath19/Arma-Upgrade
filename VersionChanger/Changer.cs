@@ -26,14 +26,14 @@ namespace VersionChanger
 	class Changer
 	{
 
-		private static int _stage = 0;
-		private static readonly int _stages = 5;
-		private static readonly string _unpackPath = Path.Combine(Path.GetTempPath(), @"Arma Delta Files");
-		private static readonly string _armaTemp = Path.Combine(Path.GetTempPath(), @"Arma temp");
-		private static BackgroundWorker worker;
-		private static ManualResetEvent mre;
+		private static int _stage = 0;//Curent stage of the version change
+		private static readonly int _stages = 5;//Total stages (for progress calculation
+		private static readonly string _unpackPath = Path.Combine(Path.GetTempPath(), @"Arma Delta Files");//Default unpack path for the zip
+		private static readonly string _armaTemp = Path.Combine(Path.GetTempPath(), @"Arma temp");//Default path for building the arma files from deltas
+		private static BackgroundWorker worker;//Background worker from progress window
+		private static ManualResetEvent mre;//Pause and resume from progress window
 
-		
+
 
 		#region Control Functions
 
@@ -44,7 +44,7 @@ namespace VersionChanger
 		{
 			mre.Set();
 		}
-		
+
 		/// <summary>
 		/// Pauses all worker threads and prevents them from modifying/reading files
 		/// </summary>
@@ -56,6 +56,14 @@ namespace VersionChanger
 
 		#region Delta switch functions
 
+
+
+		/// <summary>
+		/// Create delta file from 2 files
+		/// </summary>
+		/// <param name="modified">File that the delta will update to</param>
+		/// <param name="original">File that the delta file will use as the base</param>
+		/// <param name="output">Output path for the delta file</param>
 		private static void DoEncode(string modified, string original, string output)
 		{
 			using (FileStream outputS = new FileStream(output, FileMode.CreateNew, FileAccess.Write))
@@ -78,6 +86,13 @@ namespace VersionChanger
 			}
 		}
 
+
+		/// <summary>
+		/// Function to assemble a file from delta and original and output it to the "output" file
+		/// </summary>
+		/// <param name="delta">Path to delta file</param>
+		/// <param name="original">Path to original file</param>
+		/// <param name="output">Path to output file</param>
 		private static void DoDecode(string delta, string original, string output)
 		{
 			using (FileStream outputS = new FileStream(output, FileMode.Create, FileAccess.Write))
@@ -253,6 +268,7 @@ namespace VersionChanger
 		{
 			long length = 0;
 
+			//Calculate total length in bytes to set as the 100% for the progress bar
 			foreach (var item in Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories).Where(x => !x.Contains(".hash")))
 			{
 				string outputFile = $"{item.Replace(path1, path2)}";
@@ -266,12 +282,15 @@ namespace VersionChanger
 				{
 					var file = new FileInfo(item);
 
+					//Start building final file from delta
+
 					Directory.CreateDirectory(file.DirectoryName.Replace(path1, output));
 					Debug.WriteLine($"Writing out file: {item.Replace(path1, output)}");
 
 					DoDecode(item, item.Replace(path1, path2), item.Replace(path1, output));
 					Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
 
+					//Update progress with the total bytes 
 					done += (double)100 * new FileInfo(item.Replace(path1, path2)).Length / length;
 					if (done >= 100)
 					{
@@ -285,6 +304,12 @@ namespace VersionChanger
 		}
 
 
+		/// <summary>
+		/// Iterate through all hash files in the _unpack path and verify if they exist and match the files in the outputFolder
+		/// </summary>
+		/// <param name="outputFolder">folder to check the hash values with</param>
+		/// <param name="mismatch">output value (will be empty if all files match) that will contain mismatch file paths</param>
+		/// <returns></returns>
 		private static bool VerifyVersion(string outputFolder, out string mismatch)
 		{
 			mismatch = "";
@@ -293,15 +318,30 @@ namespace VersionChanger
 			double done = 0;
 			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
 			{
+				//Calculate total length in bytes to set as the 100% for the progress bar
 				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
+
+				if (!File.Exists(outputFile))
+				{
+					continue;
+				}
+
 				length += new FileInfo(outputFile).Length;
 			}
 			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
 			{
 				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
+				if (!File.Exists(outputFile))
+				{
+					mismatch += outputFile;
+					res = false;
+					continue;
+				}
+
 				using (var md5 = MD5.Create())
 				using (var streamInput = File.OpenRead(outputFile))
 				{
+					//Compare between the hash calculated from the stream and the hash read from the file
 					var hash = md5.ComputeHash(streamInput);
 					var hashFile = File.ReadAllBytes(item);
 					if (!hash.SequenceEqual(hashFile))
@@ -315,6 +355,8 @@ namespace VersionChanger
 						Debug.WriteLine($"Item match {outputFile}");
 					}
 				}
+
+				//Update progress with the total bytes 
 				done += (double)100 * new FileInfo(outputFile).Length / length;
 				if (done >= 100)
 				{
@@ -328,6 +370,10 @@ namespace VersionChanger
 			return res;
 		}
 
+		/// <summary>
+		/// Replace all the files from the outputfolder  directory with the final files from the program
+		/// </summary>
+		/// <param name="outputFolder">directory to replace files in</param>
 		private static void ReplaceAll(string outputFolder)
 		{
 			long length = Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories).Sum(x => new FileInfo(x).Length);
@@ -335,9 +381,12 @@ namespace VersionChanger
 			bool forceCancelCanceled = false;
 			foreach (var item in Directory.EnumerateFiles(_armaTemp, "*", SearchOption.AllDirectories))
 			{
+				//Replace the file
 				File.Delete(item.Replace(_armaTemp, outputFolder));
 				File.Move(item, item.Replace(_armaTemp, outputFolder));
-				done += (double)100 * new FileInfo(item.Replace(_armaTemp,outputFolder)).Length / length;
+
+				//Update progress with the total bytes 
+				done += (double)100 * new FileInfo(item.Replace(_armaTemp, outputFolder)).Length / length;
 				if (done >= 100)
 				{
 					done = 100;
@@ -345,6 +394,7 @@ namespace VersionChanger
 
 				worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
 
+				//Make sure you user is certain he wants to cancel as cancelling this step *will* corrupt something in the game, and will prevent him from updating again (as the hash will change)
 				if (worker.CancellationPending && !forceCancelCanceled)
 				{
 					if (MessageBox.Show("You have started replacing files\nIf you cancel now, arma might be corrupt.\nDo you wish to force cancel?", "CAUTION", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
@@ -362,6 +412,10 @@ namespace VersionChanger
 			};
 		}
 
+
+		/// <summary>
+		/// Remove all temp folders
+		/// </summary>
 		public static void Cleanup()
 		{
 			try
@@ -371,21 +425,26 @@ namespace VersionChanger
 			}
 			catch (Exception) { }
 		}
+
+
 		/// <summary>
 		/// Extract resource to _zipPath
 		/// </summary>
 		/// <param name="resourceName">name of zip to extract</param>
 		private static void ExtractZip(string resourceName)
 		{
+			//Get the dll path for 7z
 			var sevenZipPath = Path.Combine(
 				Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
 				Environment.Is64BitProcess ? "x64" : "x86", "7z.dll");
 
 			SevenZipBase.SetLibraryPath(sevenZipPath);
 
+
 			var file = new SevenZipExtractor(resourceName);
 			file.FileExtractionFinished += (sender, args) =>
 			{
+				//args.PercentDone returns a byte for some fucking reason, try to convert to an int
 				int percentDone = int.TryParse(args.PercentDone.ToString(), out int test) ? test : 0;
 				if (percentDone >= 100)
 				{
@@ -398,7 +457,7 @@ namespace VersionChanger
 
 			};
 
-
+			//Start extracting
 			file.ExtractArchive(_unpackPath);
 
 		}
@@ -424,6 +483,7 @@ namespace VersionChanger
 			double done = 0;
 			foreach (var item in Directory.EnumerateFiles(path1, "*", SearchOption.AllDirectories))
 			{
+				//Calculate total byte length for progress calculation
 				var file = new FileInfo(item);
 
 				try
@@ -449,6 +509,7 @@ namespace VersionChanger
 							Debug.WriteLine($"Writing out file: {item.Replace(path1, output)}");
 							try
 							{
+								//Try to create a hash file and delta file
 								DoEncode(item, item.Replace(path1, path2), item.Replace(path1, output));
 								DoHash(item.Replace(path1, path2), $"{item.Replace(path1, output)}.hash");
 								Debug.WriteLine($"Finsihed writing out file: {item.Replace(path1, output)}");
@@ -456,12 +517,14 @@ namespace VersionChanger
 							}
 							catch (IOException e)
 							{
+								//Cleanup in case of failure
 								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)}\n\n{e.Message}");
 								File.Delete(item.Replace(path1, output));
 								File.Delete($"{item.Replace(path1, output)}.hash");
 							}
 							catch (OutOfMemoryException)
 							{
+								//Cleanup in case of failure
 								Debug.WriteLine($"Failed writing out file: {item.Replace(path1, output)} ------- MEMORY");
 								File.Delete(item.Replace(path1, output));
 								File.Delete($"{item.Replace(path1, output)}.hash");
@@ -469,6 +532,8 @@ namespace VersionChanger
 							}
 
 						}
+
+						//Update progress
 						done += (double)100 * file.Length / length;
 						if (done >= 100)
 						{

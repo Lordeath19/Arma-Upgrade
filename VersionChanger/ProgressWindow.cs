@@ -7,11 +7,14 @@ namespace VersionChanger
 	public partial class ProgressWindow : Form
 	{
 		private BackgroundWorker bgWorker;
-		private bool toggle;
+		private bool toggle;//false = resume
+							//true = pause
+
 		public ProgressWindow(Tuple<string, string> args)
 		{
 			InitializeComponent();
-			toggle = false;
+			toggle = false;	
+			
 			bgWorker = new BackgroundWorker
 			{
 				WorkerReportsProgress = true,
@@ -20,7 +23,7 @@ namespace VersionChanger
 			bgWorker.DoWork += Changer.DoProcess;
 			bgWorker.RunWorkerCompleted += Completed;
 			bgWorker.ProgressChanged += ProgressEvent;
-			bgWorker.RunWorkerAsync(args);
+			bgWorker.RunWorkerAsync(args);//Args will include the resource file and output folder
 
 		}
 
@@ -36,24 +39,32 @@ namespace VersionChanger
 			bgWorker.DoWork += Changer.GetDifferentFiles;
 			bgWorker.RunWorkerCompleted += Completed;
 			bgWorker.ProgressChanged += ProgressEvent;
-			bgWorker.RunWorkerAsync(args);
+			bgWorker.RunWorkerAsync(args);//Args will include the modified path, original path, and output delta path
 
 		}
 
+		//When the back ground worker completes close the form
 		public void Completed(object sender, RunWorkerCompletedEventArgs e)
 		{
 			Close();
 		}
 
-		internal void Clear()
-		{
-			progressOverall.Value = 1;
-		}
 
+		/// <summary>
+		/// Updated everytime progress occurs 
+		/// </summary>
+		/// <param name="e">Contains user state which basically wears 2 hats
+		/// Int - percentage in the current progress bar
+		/// String - New label to put to represent current stage
+		/// </param>
 		internal void ProgressEvent(object sender, ProgressChangedEventArgs e)
 		{
+			//Try to parse the user state (the current percentage) to an int, else 0
 			progressCurrent.Value = int.TryParse(e.UserState?.ToString(), out int test) ? test : 0;
+
+			//Try to parse the user state(if it's not an int it's a string) to a string, else keep it that way
 			labelOverall.Text = !int.TryParse(e.UserState?.ToString(), out test) ? e.UserState?.ToString() ?? labelOverall.Text : labelOverall.Text;
+
 			progressOverall.Value = e.ProgressPercentage;
 		}
 
@@ -61,7 +72,10 @@ namespace VersionChanger
 		{
 			if (MessageBox.Show("Are you sure you want to cancel?\nOperations in progress will complete and exit", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
 			{
+				//In case thread is paused, resume it so it can stop gracefully
 				Changer.ResumeThread();
+				
+				//Send cancel request to threads
 				bgWorker.CancelAsync();
 			}
 		}
@@ -69,6 +83,7 @@ namespace VersionChanger
 
 		private void PauseButton_Click(object sender, EventArgs e)
 		{
+			//Flip between pause and resume
 			if(!toggle)
 			{
 				pauseButton.Text = "Resume";
@@ -79,7 +94,6 @@ namespace VersionChanger
 				pauseButton.Text = "Pause";
 				Changer.ResumeThread();
 			}
-
 			toggle = !toggle;
 		}
 
