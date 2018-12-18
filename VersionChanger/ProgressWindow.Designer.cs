@@ -91,6 +91,7 @@
 			this.Controls.Add(this.progressOverall);
 			this.Name = "ProgressWindow";
 			this.Text = "Progress";
+			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ProgressWindow_FormClosing);
 			this.ResumeLayout(false);
 
 		}

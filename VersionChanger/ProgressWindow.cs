@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows.Forms;
 
 namespace VersionChanger
@@ -13,8 +14,8 @@ namespace VersionChanger
 		public ProgressWindow(Tuple<string, string> args)
 		{
 			InitializeComponent();
-			toggle = false;	
-			
+			toggle = false;
+
 			bgWorker = new BackgroundWorker
 			{
 				WorkerReportsProgress = true,
@@ -68,15 +69,29 @@ namespace VersionChanger
 			progressOverall.Value = e.ProgressPercentage;
 		}
 
+
 		private void CancelButton_Click(object sender, EventArgs e)
 		{
+			bool toggleCopy = toggle;
+
+			if (!toggleCopy)
+			{
+				Changer.PauseThread();
+				toggleCopy = true;
+			}
 			if (MessageBox.Show("Are you sure you want to cancel?\nOperations in progress will complete and exit", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
 			{
 				//In case thread is paused, resume it so it can stop gracefully
 				Changer.ResumeThread();
-				
+
 				//Send cancel request to threads
 				bgWorker.CancelAsync();
+
+				DialogResult = DialogResult.OK;
+			}
+			else if (toggleCopy)
+			{
+				Changer.ResumeThread();
 			}
 		}
 
@@ -84,7 +99,7 @@ namespace VersionChanger
 		private void PauseButton_Click(object sender, EventArgs e)
 		{
 			//Flip between pause and resume
-			if(!toggle)
+			if (!toggle)
 			{
 				pauseButton.Text = "Resume";
 				Changer.PauseThread();
@@ -97,5 +112,14 @@ namespace VersionChanger
 			toggle = !toggle;
 		}
 
+		private void ProgressWindow_FormClosing(object sender, FormClosingEventArgs e)
+		{
+			if (DialogResult != DialogResult.OK)
+			{
+				CancelButton_Click(sender, e);
+				if (DialogResult != DialogResult.OK)
+					e.Cancel = true;
+			}
+		}
 	}
 }
