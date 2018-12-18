@@ -77,6 +77,7 @@
 			this.pauseButton.TabIndex = 5;
 			this.pauseButton.Text = "Pause";
 			this.pauseButton.UseVisualStyleBackColor = true;
+			this.pauseButton.Click += new System.EventHandler(this.PauseButton_Click);
 			// 
 			// ProgressWindow
 			// 

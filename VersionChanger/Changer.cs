@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using SevenZip;
@@ -30,124 +31,31 @@ namespace VersionChanger
 		private static readonly string _unpackPath = Path.Combine(Path.GetTempPath(), @"Arma Delta Files");
 		private static readonly string _armaTemp = Path.Combine(Path.GetTempPath(), @"Arma temp");
 		private static BackgroundWorker worker;
+		private static ManualResetEvent mre;
 
-		/// Extract Zip
-		/// Verify Version (if not correct exit and print all mismatch files
-		/// Merge Files (hopefully directly into the main game)
-		/// Replace All (if can't merge into the main game, output to temp folder and replace all the game files after finished with the new files)
-		/// Cleanup (Clean Zip extract, New Files from deltas)
+		
 
-
-
-		public static void DoProcess(object sender, DoWorkEventArgs args)
-		{
-			string resourceName = (args.Argument as Tuple<string, string>).Item1;
-			string outputFolder = (args.Argument as Tuple<string, string>).Item2;
-			worker = sender as BackgroundWorker;
-			_stage = 0;
-			bool loopAgain = true;
-			while (loopAgain)
-			{
-				try
-				{
-					switch (_stage)
-					{
-
-						case 0:
-							ExtractZip(resourceName);
-							if (worker.CancellationPending) goto case 4;
-							worker.ReportProgress(100 * ++_stage / _stages, "Verifying Arma Version");
-							goto case 1;
-
-						case 1:
-							if (!VerifyVersion(outputFolder, out string mismatch))
-							{
-								MessageBox.Show("Your arma version can not be changed due to this file not having the correct data\n\n" + mismatch, "Failure", MessageBoxButtons.OK, MessageBoxIcon.Error);
-								loopAgain = false;
-								break;
-							}
-							if (worker.CancellationPending) goto case 4;
-							worker.ReportProgress(100 * ++_stage / _stages, "Making update files");
-							goto case 2;
-						case 2:
-							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
-							if (worker.CancellationPending) goto case 4;
-							worker.ReportProgress(100 * ++_stage / _stages, "Replacing arma files");
-							goto case 3;
-						case 3:
-							ReplaceAll(outputFolder);
-							if (worker.CancellationPending) goto case 4;
-							worker.ReportProgress(100 * ++_stage / _stages, "Cleaning up");
-							goto case 4;
-						case 4:
-							Cleanup();
-							if (worker.CancellationPending)
-							{
-								loopAgain = false;
-								break;
-							}
-							worker.ReportProgress(100 * ++_stage / _stages);
-							goto case 5;
-						case 5:
-							loopAgain = false;
-							MessageBox.Show("Version has been changed", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-							break;
-
-					}
-
-				}
-				catch (IOException e)
-				{
-					if (MessageBox.Show("Could not access the file\nDo you want to try again?\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-				catch (UnauthorizedAccessException e)
-				{
-					if (MessageBox.Show("The file is set to read only\nAnd can't be replaced\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-				catch (PlatformNotSupportedException e)
-				{
-					if (MessageBox.Show("The program is only able to run on windows 7+\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-
-				catch (AggregateException es)
-				{
-					string totalExceptions = "";
-					foreach (var e in es.InnerExceptions)
-					{
-						totalExceptions += $"{e.Message}\n\n";
-					}
-					if (MessageBox.Show("An unknown error has occured\n\n" + totalExceptions, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-				catch (Exception e)
-				{
-					if (MessageBox.Show("An unknown error has occured\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
-					{
-						loopAgain = false;
-					}
-				}
-			}
-		}
-
-
+		#region Control Functions
 
 		/// <summary>
-		/// 
+		/// Resumes all worker threads and allows them to modify/read files
 		/// </summary>
-		/// <param name="modified"></param>
-		/// <param name="original"></param>
-		/// <param name="output"></param>
+		public static void ResumeThread()
+		{
+			mre.Set();
+		}
+		
+		/// <summary>
+		/// Pauses all worker threads and prevents them from modifying/reading files
+		/// </summary>
+		public static void PauseThread()
+		{
+			mre.Reset();
+		}
+		#endregion
+
+		#region Delta switch functions
+
 		private static void DoEncode(string modified, string original, string output)
 		{
 			using (FileStream outputS = new FileStream(output, FileMode.CreateNew, FileAccess.Write))
@@ -197,9 +105,143 @@ namespace VersionChanger
 				//if success bytesWritten will contain the number of bytes that were decoded
 			}
 		}
-
+		#endregion
 
 		#region Replace Functions
+
+
+		/// <summary>
+		/// Main process that will call all functions in order
+		/// </summary>
+		/// <param name="sender">the background worker</param>
+		/// <param name="args">
+		/// 
+		/// resourceName = Name of delta file zip
+		/// outputFolder = Full path of target files
+		/// 
+		/// </param>
+		public static void DoProcess(object sender, DoWorkEventArgs args)
+		{
+			string resourceName = (args.Argument as Tuple<string, string>).Item1;
+			string outputFolder = (args.Argument as Tuple<string, string>).Item2;
+			worker = sender as BackgroundWorker;
+			mre = new ManualResetEvent(true);
+			_stage = 0;
+			bool loopAgain = true;
+			while (loopAgain)
+			{
+				try
+				{
+					switch (_stage)
+					{
+						//First stage - Extract the delta files from the resource file
+						case 0:
+							ExtractZip(resourceName);
+							if (worker.CancellationPending) goto case 4;
+							worker.ReportProgress(100 * ++_stage / _stages, "Verifying Arma Version");
+							mre.WaitOne();
+							goto case 1;
+
+						//Second stage - Verify that all files in the target folder are ready 
+						//to get combined with the delta files
+						case 1:
+							if (!VerifyVersion(outputFolder, out string mismatch))
+							{
+								MessageBox.Show("Your arma version can not be changed due to this file not having the correct data\n\n" + mismatch, "Failure", MessageBoxButtons.OK, MessageBoxIcon.Error);
+								loopAgain = false;
+								break;
+							}
+							if (worker.CancellationPending) goto case 4;
+							worker.ReportProgress(100 * ++_stage / _stages, "Making update files");
+							mre.WaitOne();
+
+							goto case 2;
+
+						//Start combining files from the target folder and the delta files
+						case 2:
+							MergeDifferentFiles(_unpackPath, outputFolder, _armaTemp);
+							if (worker.CancellationPending) goto case 4;
+							worker.ReportProgress(100 * ++_stage / _stages, "Replacing arma files");
+							mre.WaitOne();
+
+							goto case 3;
+
+						//Replace all files in the target folder with the combined files 
+						case 3:
+							ReplaceAll(outputFolder);
+							if (worker.CancellationPending) goto case 4;
+							worker.ReportProgress(100 * ++_stage / _stages, "Cleaning up");
+							mre.WaitOne();
+
+							goto case 4;
+
+						//Cleanup Zip unpack path (where the raw delta files are)
+						//Cleanup Arma temp path (where the combined files are built)
+						case 4:
+							Cleanup();
+							if (worker.CancellationPending)
+							{
+								loopAgain = false;
+								break;
+							}
+							worker.ReportProgress(100 * ++_stage / _stages);
+
+							goto case 5;
+						case 5:
+							loopAgain = false;
+							MessageBox.Show("Version has been changed", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+							break;
+
+					}
+
+				}
+				//File doesn't exist/access denied/file in use
+				catch (IOException e)
+				{
+					if (MessageBox.Show("Could not access the file\nDo you want to try again?\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
+					{
+						loopAgain = false;
+					}
+				}
+				//File is set to read only
+				catch (UnauthorizedAccessException e)
+				{
+					if (MessageBox.Show("The file is set to read only\nAnd can't be replaced\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
+					{
+						loopAgain = false;
+					}
+				}
+				//Incorrect windows version
+				catch (PlatformNotSupportedException e)
+				{
+					if (MessageBox.Show("The program is only able to run on windows 7+\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
+					{
+						loopAgain = false;
+					}
+				}
+				//Error happened in one of the Parallel functions (MergeDifferentFiles/GetDifferentFiles)
+				catch (AggregateException es)
+				{
+					string totalExceptions = "";
+					foreach (var e in es.InnerExceptions)
+					{
+						totalExceptions += $"{e.Message}\n\n";
+					}
+					if (MessageBox.Show("An unknown error has occured\n\n" + totalExceptions, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
+					{
+						loopAgain = false;
+					}
+				}
+				//Generic catch all exception to prevent the program from continuing
+				catch (Exception e)
+				{
+					if (MessageBox.Show("An unknown error has occured\n\n" + e.Message, "Version change failed", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) == DialogResult.Cancel)
+					{
+						loopAgain = false;
+					}
+				}
+			}
+		}
 
 		/// <summary>
 		/// Create diff files for original and updated and store it output (works in conjuction with GetDifferentFiles)
@@ -237,6 +279,8 @@ namespace VersionChanger
 					}
 					worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
 					if (worker.CancellationPending) state.Break();
+					mre.WaitOne();
+
 				});
 		}
 
@@ -263,7 +307,7 @@ namespace VersionChanger
 					if (!hash.SequenceEqual(hashFile))
 					{
 						Debug.WriteLine($"Not Item match {outputFile}");
-						mismatch += item;
+						mismatch += outputFile + Environment.NewLine;
 						res = false;
 					}
 					else
@@ -278,6 +322,8 @@ namespace VersionChanger
 				}
 				worker.ReportProgress((100 * _stage / _stages) + (int)done / _stages, (int)done);
 				if (worker.CancellationPending) return true;
+				mre.WaitOne();
+
 			};
 			return res;
 		}
@@ -310,6 +356,8 @@ namespace VersionChanger
 						forceCancelCanceled = true;
 					}
 				}
+				mre.WaitOne();
+
 
 			};
 		}
@@ -343,8 +391,11 @@ namespace VersionChanger
 				{
 					percentDone = 100;
 				}
-				if (worker.CancellationPending) args.Cancel = true;
 				worker.ReportProgress((100 * _stage / _stages) + percentDone / _stages, percentDone);
+				if (worker.CancellationPending) args.Cancel = true;
+
+				mre.WaitOne();
+
 			};
 
 
@@ -353,7 +404,7 @@ namespace VersionChanger
 		}
 		#endregion
 
-
+		#region Setup Functions
 
 		/// <summary>
 		/// Create diff files for original and updated and store it output (works in conjuction with MergeDifferentFiles
@@ -425,6 +476,8 @@ namespace VersionChanger
 						}
 						worker.ReportProgress((int)done);
 						if (worker.CancellationPending) return;
+						mre.WaitOne();
+
 					}
 					catch (IOException) { }
 				});
@@ -444,8 +497,12 @@ namespace VersionChanger
 				var hash = md5.ComputeHash(stream);
 				streamOut.Write(hash, 0, hash.Length);
 				if (worker.CancellationPending) return;
+				mre.WaitOne();
+
 			}
 
 		}
+
+		#endregion
 	}
 }

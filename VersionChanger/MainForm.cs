@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Windows.Forms;
 
 namespace VersionChanger
@@ -56,9 +57,30 @@ namespace VersionChanger
 			Properties.Settings.Default.Save();
 		}
 
+		private void CustomVersion_Click(object sender, EventArgs e)
+		{
+			var filePath = string.Empty;
 
+			using (OpenFileDialog openFileDialog = new OpenFileDialog())
+			{
+				openFileDialog.InitialDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"Resources");
+				openFileDialog.Filter = "7z files (*.7z)|*.7z|All files (*.*)|*.*";
+				openFileDialog.FilterIndex = 1;
+				openFileDialog.RestoreDirectory = true;
 
+				if (openFileDialog.ShowDialog() == DialogResult.OK)
+				{
+					//Get the path of specified file
+					filePath = openFileDialog.FileName;
 
+					Changer.Cleanup();
 
+					ProgressWindow window = new ProgressWindow(new Tuple<string, string>(filePath, armaText.Text));
+					window.ShowDialog();
+
+					Changer.Cleanup();
+				}
+			}
+		}
 	}
 }
