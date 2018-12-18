@@ -33,7 +33,7 @@ namespace VersionChanger
 		private static BackgroundWorker worker;
 		private static ManualResetEvent mre;
 
-		
+
 
 		#region Control Functions
 
@@ -44,7 +44,7 @@ namespace VersionChanger
 		{
 			mre.Set();
 		}
-		
+
 		/// <summary>
 		/// Pauses all worker threads and prevents them from modifying/reading files
 		/// </summary>
@@ -56,6 +56,14 @@ namespace VersionChanger
 
 		#region Delta switch functions
 
+
+
+		/// <summary>
+		/// Create delta file from 2 files
+		/// </summary>
+		/// <param name="modified">File that the delta will update to</param>
+		/// <param name="original">File that the delta file will use as the base</param>
+		/// <param name="output">Output path for the delta file</param>
 		private static void DoEncode(string modified, string original, string output)
 		{
 			using (FileStream outputS = new FileStream(output, FileMode.CreateNew, FileAccess.Write))
@@ -78,6 +86,13 @@ namespace VersionChanger
 			}
 		}
 
+
+		/// <summary>
+		/// Function to assemble a file from delta and original and output it to the "output" file
+		/// </summary>
+		/// <param name="delta">Path to delta file</param>
+		/// <param name="original">Path to original file</param>
+		/// <param name="output">Path to output file</param>
 		private static void DoDecode(string delta, string original, string output)
 		{
 			using (FileStream outputS = new FileStream(output, FileMode.Create, FileAccess.Write))
@@ -285,6 +300,12 @@ namespace VersionChanger
 		}
 
 
+		/// <summary>
+		/// Iterate through all hash files in the _unpack path and verify if they exist and match the files in the outputFolder
+		/// </summary>
+		/// <param name="outputFolder">folder to check the hash values with</param>
+		/// <param name="mismatch">output value (will be empty if all files match) that will contain mismatch file paths</param>
+		/// <returns></returns>
 		private static bool VerifyVersion(string outputFolder, out string mismatch)
 		{
 			mismatch = "";
@@ -293,12 +314,25 @@ namespace VersionChanger
 			double done = 0;
 			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
 			{
+
 				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
+
+				if (!File.Exists(outputFile))
+				{
+					continue;
+				}
+
 				length += new FileInfo(outputFile).Length;
 			}
 			foreach (var item in Directory.EnumerateFiles(_unpackPath, "*.hash", SearchOption.AllDirectories))
 			{
 				string outputFile = $"{item.Replace(_unpackPath, outputFolder).Replace(".hash", "")}";
+				if (!File.Exists(outputFile))
+				{
+					mismatch += outputFile;
+					res = false;
+					continue;
+				}
 				using (var md5 = MD5.Create())
 				using (var streamInput = File.OpenRead(outputFile))
 				{
@@ -337,7 +371,7 @@ namespace VersionChanger
 			{
 				File.Delete(item.Replace(_armaTemp, outputFolder));
 				File.Move(item, item.Replace(_armaTemp, outputFolder));
-				done += (double)100 * new FileInfo(item.Replace(_armaTemp,outputFolder)).Length / length;
+				done += (double)100 * new FileInfo(item.Replace(_armaTemp, outputFolder)).Length / length;
 				if (done >= 100)
 				{
 					done = 100;
