@@ -23,42 +23,6 @@ namespace VersionChanger.Properties {
             }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
-<ArrayOfString xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
-  <string>226d0e9d0383c34ae5021e70b3b029c9</string>
-  <string>93d6d18e2fc3aca51d51d1763d1a1939</string>
-  <string>226d0e9d0383c34ae5021e70b3b029c9</string>
-  <string>78dea937024036e97979df1aa6c76531</string>
-  <string>8c0825ef30627a82dba0031e97354748</string>
-  <string>93d6d18e2fc3aca51d51d1763d1a1939</string>
-  <string>cbdd0d7c8cce5927199522a103b487cc</string>
-</ArrayOfString>")]
-        public global::System.Collections.Specialized.StringCollection hashLatest {
-            get {
-                return ((global::System.Collections.Specialized.StringCollection)(this["hashLatest"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute(@"<?xml version=""1.0"" encoding=""utf-16""?>
-<ArrayOfString xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
-  <string>226d0e9d0383c34ae5021e70b3b029c9</string>
-  <string>93d6d18e2fc3aca51d51d1763d1a1939</string>
-  <string>226d0e9d0383c34ae5021e70b3b029c9</string>
-  <string>78dea937024036e97979df1aa6c76531</string>
-  <string>8c0825ef30627a82dba0031e97354748</string>
-  <string>93d6d18e2fc3aca51d51d1763d1a1939</string>
-  <string>cbdd0d7c8cce5927199522a103b487cc</string>
-</ArrayOfString>")]
-        public global::System.Collections.Specialized.StringCollection hashStable {
-            get {
-                return ((global::System.Collections.Specialized.StringCollection)(this["hashStable"]));
-            }
-        }
-        
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]

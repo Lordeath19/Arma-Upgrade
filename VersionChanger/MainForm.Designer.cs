@@ -30,6 +30,7 @@ namespace VersionChanger
 		/// </summary>
 		private void InitializeComponent()
 		{
+			this.components = new System.ComponentModel.Container();
 			this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
 			this.armaBrowser = new System.Windows.Forms.Button();
 			this.label2 = new System.Windows.Forms.Label();
@@ -41,6 +42,9 @@ namespace VersionChanger
 			this.label3 = new System.Windows.Forms.Label();
 			this.label4 = new System.Windows.Forms.Label();
 			this.button1 = new System.Windows.Forms.Button();
+			this.settingsButton = new System.Windows.Forms.Button();
+			this.imageList1 = new System.Windows.Forms.ImageList(this.components);
+			this.settingTooltip = new System.Windows.Forms.ToolTip(this.components);
 			this.SuspendLayout();
 			// 
 			// armaBrowser
@@ -144,11 +148,30 @@ namespace VersionChanger
 			this.button1.UseVisualStyleBackColor = true;
 			this.button1.Click += new System.EventHandler(this.CustomVersion_Click);
 			// 
+			// settingsButton
+			// 
+			this.settingsButton.BackgroundImage = global::VersionChanger.Properties.Resources.settings_icon;
+			this.settingsButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+			this.settingsButton.Location = new System.Drawing.Point(309, -1);
+			this.settingsButton.Name = "settingsButton";
+			this.settingsButton.Size = new System.Drawing.Size(23, 23);
+			this.settingsButton.TabIndex = 13;
+			this.settingTooltip.SetToolTip(this.settingsButton, "Settings");
+			this.settingsButton.UseVisualStyleBackColor = true;
+			this.settingsButton.Click += new System.EventHandler(this.SettingsButton_Click);
+			// 
+			// imageList1
+			// 
+			this.imageList1.ColorDepth = System.Windows.Forms.ColorDepth.Depth8Bit;
+			this.imageList1.ImageSize = new System.Drawing.Size(16, 16);
+			this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
+			// 
 			// MainForm
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.ClientSize = new System.Drawing.Size(332, 207);
+			this.Controls.Add(this.settingsButton);
 			this.Controls.Add(this.button1);
 			this.Controls.Add(this.label4);
 			this.Controls.Add(this.label3);
@@ -162,6 +185,7 @@ namespace VersionChanger
 			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
 			this.MaximizeBox = false;
 			this.Name = "MainForm";
+			this.ShowIcon = false;
 			this.Text = "Arma Version Changer";
 			this.ResumeLayout(false);
 			this.PerformLayout();
@@ -181,6 +205,9 @@ namespace VersionChanger
 		private System.Windows.Forms.Label label3;
 		private System.Windows.Forms.Label label4;
 		private System.Windows.Forms.Button button1;
+		private System.Windows.Forms.Button settingsButton;
+		private System.Windows.Forms.ImageList imageList1;
+		private System.Windows.Forms.ToolTip settingTooltip;
 	}
 }
 

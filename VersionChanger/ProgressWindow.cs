@@ -36,6 +36,8 @@ namespace VersionChanger
 			bgWorker = new BackgroundWorker
 			{
 				WorkerReportsProgress = true,
+				WorkerSupportsCancellation = true
+
 			};
 			bgWorker.DoWork += Changer.GetDifferentFiles;
 			bgWorker.RunWorkerCompleted += Completed;
@@ -47,6 +49,7 @@ namespace VersionChanger
 		//When the back ground worker completes close the form
 		public void Completed(object sender, RunWorkerCompletedEventArgs e)
 		{
+			DialogResult = DialogResult.OK;
 			Close();
 		}
 

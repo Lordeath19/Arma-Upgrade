@@ -89,7 +89,10 @@
 			this.Controls.Add(this.labelOverall);
 			this.Controls.Add(this.progressCurrent);
 			this.Controls.Add(this.progressOverall);
+			this.MaximizeBox = false;
 			this.Name = "ProgressWindow";
+			this.ShowIcon = false;
+			this.ShowInTaskbar = false;
 			this.Text = "Progress";
 			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ProgressWindow_FormClosing);
 			this.ResumeLayout(false);

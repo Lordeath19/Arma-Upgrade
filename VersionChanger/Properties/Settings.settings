@@ -2,30 +2,6 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="VersionChanger.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="hashLatest" Type="System.Collections.Specialized.StringCollection" Scope="Application">
-      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
-&lt;ArrayOfString xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
-  &lt;string&gt;226d0e9d0383c34ae5021e70b3b029c9&lt;/string&gt;
-  &lt;string&gt;93d6d18e2fc3aca51d51d1763d1a1939&lt;/string&gt;
-  &lt;string&gt;226d0e9d0383c34ae5021e70b3b029c9&lt;/string&gt;
-  &lt;string&gt;78dea937024036e97979df1aa6c76531&lt;/string&gt;
-  &lt;string&gt;8c0825ef30627a82dba0031e97354748&lt;/string&gt;
-  &lt;string&gt;93d6d18e2fc3aca51d51d1763d1a1939&lt;/string&gt;
-  &lt;string&gt;cbdd0d7c8cce5927199522a103b487cc&lt;/string&gt;
-&lt;/ArrayOfString&gt;</Value>
-    </Setting>
-    <Setting Name="hashStable" Type="System.Collections.Specialized.StringCollection" Scope="Application">
-      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
-&lt;ArrayOfString xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
-  &lt;string&gt;226d0e9d0383c34ae5021e70b3b029c9&lt;/string&gt;
-  &lt;string&gt;93d6d18e2fc3aca51d51d1763d1a1939&lt;/string&gt;
-  &lt;string&gt;226d0e9d0383c34ae5021e70b3b029c9&lt;/string&gt;
-  &lt;string&gt;78dea937024036e97979df1aa6c76531&lt;/string&gt;
-  &lt;string&gt;8c0825ef30627a82dba0031e97354748&lt;/string&gt;
-  &lt;string&gt;93d6d18e2fc3aca51d51d1763d1a1939&lt;/string&gt;
-  &lt;string&gt;cbdd0d7c8cce5927199522a103b487cc&lt;/string&gt;
-&lt;/ArrayOfString&gt;</Value>
-    </Setting>
     <Setting Name="pathArma" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>

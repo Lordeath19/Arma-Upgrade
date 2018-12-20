@@ -9,12 +9,17 @@ namespace VersionChanger
 		public MainForm()
 		{
 			InitializeComponent();
+			//For TST
+			//ProgressWindow windowTest = new ProgressWindow(new Tuple<string, string, string>(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 Repack test\Arma 3", @"H:\Version Changer - Delta Arma 3 - 1.80 - Test"));
+			//windowTest.ShowDialog();
+
+
 			//Downgrade
-			//ProgressWindow window = new ProgressWindow(new Tuple<string, string, string>(@"H:\Games\Arma 3 1.80", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80"));
+			//ProgressWindow window = new ProgressWindow(new Tuple<string, string, string>(@"H:\Games\Arma 3 Repack test\Arma 3", @"H:\Games\Arma 3 1.84", @"H:\Version Changer - Delta Arma 3 - 1.80"));
 			//window.ShowDialog();
 
 			//Upgrade
-			//window = new ProgressWindow(new Tuple<string, string, string>(@"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 1.80", @"H:\Version Changer - Delta Arma 3 - 1.86"));
+			//window = new ProgressWindow(new Tuple<string, string, string>(@"H:\Games\Arma 3 1.84", @"H:\Games\Arma 3 Repack test\Arma 3", @"H:\Version Changer - Delta Arma 3 - 1.88"));
 			//window.ShowDialog();
 		
 
@@ -36,7 +41,7 @@ namespace VersionChanger
 			Changer.Cleanup();
 
 			//Default path for latest updated (in this case files_1.86)
-			ProgressWindow window = new ProgressWindow(new Tuple<string, string>(@"Resources\files_186.7z", armaText.Text));
+			ProgressWindow window = new ProgressWindow(new Tuple<string, string>(@"Resources\files_188.7z", armaText.Text));
 			window.ShowDialog();
 
 			Changer.Cleanup();
@@ -89,6 +94,12 @@ namespace VersionChanger
 					Changer.Cleanup();
 				}
 			}
+		}
+
+		private void SettingsButton_Click(object sender, EventArgs e)
+		{
+			Settings settings = new Settings();
+			settings.ShowDialog();
 		}
 	}
 }

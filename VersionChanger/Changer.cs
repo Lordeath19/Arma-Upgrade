@@ -8,6 +8,8 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Octodiff.Core;
+using Octodiff.Diagnostics;
 using SevenZip;
 using VCDiff.Decoders;
 using VCDiff.Encoders;
@@ -477,6 +479,7 @@ namespace VersionChanger
 			string path2 = (args.Argument as Tuple<string, string, string>).Item2;
 			string output = (args.Argument as Tuple<string, string, string>).Item3;
 			worker = sender as BackgroundWorker;
+			mre = new ManualResetEvent(true);
 
 
 			long length = 0;
