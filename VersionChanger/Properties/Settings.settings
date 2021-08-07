@@ -6,10 +6,10 @@
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="pathLatest" Type="System.String" Scope="User">
-      <Value Profile="(Default)" />
+      <Value Profile="(Default)">Resources\files_188.7z</Value>
     </Setting>
     <Setting Name="pathStable" Type="System.String" Scope="User">
-      <Value Profile="(Default)" />
+      <Value Profile="(Default)">Resources\files_180.7z</Value>
     </Setting>
   </Settings>
 </SettingsFile>

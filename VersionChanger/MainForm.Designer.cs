@@ -34,7 +34,6 @@ namespace VersionChanger
 			this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
 			this.armaBrowser = new System.Windows.Forms.Button();
 			this.label2 = new System.Windows.Forms.Label();
-			this.armaText = new System.Windows.Forms.TextBox();
 			this.latestUpgrade = new System.Windows.Forms.Button();
 			this.stableDowngrade = new System.Windows.Forms.Button();
 			this.help = new System.Windows.Forms.Label();
@@ -45,6 +44,7 @@ namespace VersionChanger
 			this.settingsButton = new System.Windows.Forms.Button();
 			this.imageList1 = new System.Windows.Forms.ImageList(this.components);
 			this.settingTooltip = new System.Windows.Forms.ToolTip(this.components);
+			this.armaText = new System.Windows.Forms.TextBox();
 			this.SuspendLayout();
 			// 
 			// armaBrowser
@@ -68,16 +68,6 @@ namespace VersionChanger
 			this.label2.Size = new System.Drawing.Size(105, 13);
 			this.label2.TabIndex = 5;
 			this.label2.Text = "Arma Main Folder";
-			// 
-			// armaText
-			// 
-			this.armaText.Anchor = System.Windows.Forms.AnchorStyles.Top;
-			this.armaText.Location = new System.Drawing.Point(12, 135);
-			this.armaText.Name = "armaText";
-			this.armaText.Size = new System.Drawing.Size(250, 20);
-			this.armaText.TabIndex = 0;
-			this.armaText.Text = global::VersionChanger.Properties.Settings.Default.pathArma;
-			this.armaText.TextChanged += new System.EventHandler(this.ArmaText_Changed);
 			// 
 			// latestUpgrade
 			// 
@@ -166,6 +156,16 @@ namespace VersionChanger
 			this.imageList1.ImageSize = new System.Drawing.Size(16, 16);
 			this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
 			// 
+			// armaText
+			// 
+			this.armaText.Anchor = System.Windows.Forms.AnchorStyles.Top;
+			this.armaText.Location = new System.Drawing.Point(12, 135);
+			this.armaText.Name = "armaText";
+			this.armaText.Size = new System.Drawing.Size(250, 20);
+			this.armaText.TabIndex = 0;
+			this.armaText.Text = global::VersionChanger.Properties.Settings.Default.pathArma;
+			this.armaText.TextChanged += new System.EventHandler(this.ArmaText_Changed);
+			// 
 			// MainForm
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -182,7 +182,7 @@ namespace VersionChanger
 			this.Controls.Add(this.label2);
 			this.Controls.Add(this.armaText);
 			this.Controls.Add(this.armaBrowser);
-			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
 			this.MaximizeBox = false;
 			this.Name = "MainForm";
 			this.ShowIcon = false;

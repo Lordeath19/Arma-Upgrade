@@ -37,7 +37,7 @@ namespace VersionChanger.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        [global::System.Configuration.DefaultSettingValueAttribute("Resources\\files_188.7z")]
         public string pathLatest {
             get {
                 return ((string)(this["pathLatest"]));
@@ -49,7 +49,7 @@ namespace VersionChanger.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        [global::System.Configuration.DefaultSettingValueAttribute("Resources\\files_180.7z")]
         public string pathStable {
             get {
                 return ((string)(this["pathStable"]));

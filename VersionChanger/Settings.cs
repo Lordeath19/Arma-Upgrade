@@ -18,10 +18,11 @@ namespace VersionChanger
 		public Settings()
 		{
 			InitializeComponent();
-			changed = false;
+
 			textLatest.Text = Properties.Settings.Default.pathLatest;
 			textStable.Text = Properties.Settings.Default.pathStable;
-
+			changed = false;
+			
 
 		}
 
@@ -73,6 +74,9 @@ namespace VersionChanger
 
 		private void SaveButton_Click(object sender, EventArgs e)
 		{
+
+			Properties.Settings.Default.pathLatest = textLatest.Text;
+			Properties.Settings.Default.pathStable = textStable.Text;
 			Properties.Settings.Default.Save();
 			changed = false;
 		}

@@ -39,6 +39,7 @@
 			// 
 			this.progressOverall.Location = new System.Drawing.Point(11, 85);
 			this.progressOverall.Name = "progressOverall";
+			this.progressOverall.RightToLeft = System.Windows.Forms.RightToLeft.No;
 			this.progressOverall.Size = new System.Drawing.Size(303, 23);
 			this.progressOverall.TabIndex = 0;
 			// 
@@ -89,6 +90,7 @@
 			this.Controls.Add(this.labelOverall);
 			this.Controls.Add(this.progressCurrent);
 			this.Controls.Add(this.progressOverall);
+			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
 			this.MaximizeBox = false;
 			this.Name = "ProgressWindow";
 			this.ShowIcon = false;
